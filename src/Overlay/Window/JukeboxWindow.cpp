@@ -13,6 +13,12 @@ JukeboxWindow::JukeboxWindow(const std::string& windowTitle, bool windowClosable
 {
 }
 
+void JukeboxWindow::BeforeDraw() {
+	// Sensible default size on first appearance (the window is no longer
+	// auto-resized; the track list fills the remaining space and scrolls).
+	ImGui::SetNextWindowSize(ImVec2(440, 640), ImGuiCond_FirstUseEver);
+}
+
 void JukeboxWindow::Draw() {
 	MusicManager& musicManager = GetMusicManager();
 
@@ -73,48 +79,23 @@ void JukeboxWindow::DrawControls() {
 	ImGui::SameLine();
 	ImGui::ShowHelpMarker("Repeat the current track instead of playing a new one");
 
-	// Auto-advance on training mode reset
-	ImGui::HorizontalSpacing();
-	bool autoAdvance = musicManager.IsAutoAdvanceOnReset();
-	if (ImGui::Checkbox("Auto-advance on reset", &autoAdvance)) {
-		musicManager.SetAutoAdvanceOnReset(autoAdvance);
-		musicManager.SavePreferences();
-	}
-	ImGui::SameLine();
-	ImGui::ShowHelpMarker("Automatically advance to the next track when training mode resets (round restart)");
-
-	// Fallback rotation interval slider (used only when a track's true length
-	// can't be read from its wave bank; normally tracks play to their real end).
-	int intervalSec = musicManager.GetRotationInterval() / 60;
-	ImGui::Text("Fallback interval: %02d:%02d", intervalSec / 60, intervalSec % 60);
-	ImGui::SameLine();
-	ImGui::ShowHelpMarker("Tracks normally play to their REAL length (read from the\n"
-		"game's audio data) before advancing. This fixed interval is only\n"
-		"used if a track's length can't be determined.");
-	ImGui::SameLine();
-	if (ImGui::SliderInt("##RotationInterval", &intervalSec, 30, 300, "%d sec")) {
-		musicManager.SetRotationInterval(intervalSec * 60);
-		musicManager.SavePreferences();
-	}
-
 	ImGui::Spacing();
 
 	// Play buttons
-	// Music-player style transport controls
-	if (ImGui::Button("|< Previous")) {
+	// Music-player style transport controls. Previous is greyed out when there's
+	// no earlier track to step back to in the play history.
+	bool canGoPrevious = musicManager.CanGoPrevious();
+	if (!canGoPrevious) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.4f);
+	if (ImGui::Button("|< Previous") && canGoPrevious) {
 		musicManager.PlayPreviousTrack();
 	}
-	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Go back to the previously played track");
+	if (!canGoPrevious) ImGui::PopStyleVar();
+	if (ImGui::IsItemHovered() && canGoPrevious) ImGui::SetTooltip("Go back to the previously played track");
 	ImGui::SameLine();
 	if (ImGui::Button("Next >|")) {
 		musicManager.PlayNextTrack();
 	}
 	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Play the next track (per the rotation mode)");
-	ImGui::SameLine();
-	if (ImGui::Button("Random")) {
-		musicManager.PlayNextRandomTrack();
-	}
-	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Jump to a random enabled track");
 
 	ImGui::Spacing();
 
@@ -153,65 +134,6 @@ void JukeboxWindow::DrawControls() {
     }
     ImGui::SameLine();
     ImGui::ShowHelpMarker("Reset all settings and re-enable all tracks");
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
-    // Diagnostic scan section
-    ImGui::TextColored(ImVec4(1, 0.5f, 0, 1), "Diagnostics");
-    ImGui::SameLine();
-    ImGui::ShowHelpMarker("Read-only memory scan to find the actual BGM playback address.\n"
-        "Use 'Scan String Ptr' for a more precise search — it looks for the BGM name\n"
-        "string pointer instead of the raw track ID (which is often a common value).\n"
-        "Results are logged to the [music] log channel.");
-
-    if (musicManager.IsDiagnosticRunning()) {
-        if (ImGui::Button("Scanning... (wait)")) {}
-        ImGui::SameLine();
-        ImGui::Text("%d%%", musicManager.GetDiagnosticProgress());
-    } else {
-        if (ImGui::Button("Scan Track ID")) {
-            musicManager.RunDiagnosticScan();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Scan String Ptr")) {
-            musicManager.RunStringPointerScan();
-        }
-    }
-    ImGui::SameLine();
-    if (musicManager.GetDiagnosticCandidateCount() > 0) {
-        ImGui::Text("Found %d candidates", musicManager.GetDiagnosticCandidateCount());
-    } else {
-        ImGui::TextDisabled("No scan run yet");
-    }
-
-    ImGui::Spacing();
-
-    // Differential scan: run after changing track in menu
-    if (ImGui::Button("Differential Scan")) {
-        musicManager.RunDifferentialScan();
-    }
-    ImGui::SameLine();
-    ImGui::ShowHelpMarker("After running scan 1, go back to char select,\n"
-        "pick a DIFFERENT BGM track, come back, then click this.\n"
-        "Finds addresses that DIDN'T change = audio engine state.");
-    ImGui::SameLine();
-    int diffCount = musicManager.GetDifferentialResultCount();
-    if (diffCount > 0) {
-        ImGui::TextColored(ImVec4(0, 1, 0, 1), "Found %d audio engine candidates!", diffCount);
-    } else {
-        ImGui::TextDisabled("Run scan 1 first, change track, then click");
-    }
-
-    ImGui::Spacing();
-    if (ImGui::Button("Dump audioMgr State")) {
-        MusicManager::DumpAudioMgrState();
-    }
-    ImGui::SameLine();
-    ImGui::ShowHelpMarker("Dumps key audio manager struct fields to DEBUG.txt\n"
-        "Useful to compare BGM state before/after operations.\n"
-        "Log channel: [music]");
 }
 
 void JukeboxWindow::DrawCurrentTrackInfo() {
@@ -219,10 +141,14 @@ void JukeboxWindow::DrawCurrentTrackInfo() {
 
 	const MusicTrack* currentTrack = musicManager.GetCurrentTrack();
 	int currentTrackId = musicManager.GetCurrentTrackId();
+	bool inMatch = musicManager.ShouldShowPlayback();
 
 	ImGui::Text("Current Track:");
 	ImGui::SameLine();
-	if (currentTrack) {
+	if (!inMatch) {
+		// The jukebox only drives music during a match.
+		ImGui::TextDisabled("None (enter a match)");
+	} else if (currentTrack) {
 		ImGui::TextColored(ImVec4(0, 1, 1, 1), "%s (ID: %d)", currentTrack->name.c_str(), currentTrack->id);
 	} else if (currentTrackId >= 0) {
 		const char* filename = MusicManager::GetBgmFilename(currentTrackId);
@@ -235,23 +161,29 @@ void JukeboxWindow::DrawCurrentTrackInfo() {
 		ImGui::TextDisabled("None");
 	}
 
-	// Song timer
+	// Song timer — frozen at 00:00 / 00:00 when not in a match.
 	ImGui::Text("Time:");
 	ImGui::SameLine();
-	ImGui::TextColored(ImVec4(0, 1, 0, 1), "%s", musicManager.GetSongTimeString().c_str());
-
-	int totalFrames = musicManager.GetRotationThresholdFrames();
-	if (totalFrames > 0) {
-		int totalSec = totalFrames / 60;
-		int totalMins = totalSec / 60;
-		int totalSecs = totalSec % 60;
+	if (!inMatch) {
+		ImGui::TextColored(ImVec4(0, 1, 0, 1), "00:00");
 		ImGui::SameLine();
-		ImGui::TextDisabled("/ %02d:%02d", totalMins, totalSecs);
+		ImGui::TextDisabled("/ 00:00");
+	} else {
+		ImGui::TextColored(ImVec4(0, 1, 0, 1), "%s", musicManager.GetSongTimeString().c_str());
 
-		// Progress bar
-		float progress = (float)musicManager.GetSongPlaybackFrames() / (float)totalFrames;
-		if (progress > 1.0f) progress = 1.0f;
-		ImGui::ProgressBar(progress, ImVec2(-1, 0), "");
+		int totalFrames = musicManager.GetRotationThresholdFrames();
+		if (totalFrames > 0) {
+			int totalSec = totalFrames / 60;
+			int totalMins = totalSec / 60;
+			int totalSecs = totalSec % 60;
+			ImGui::SameLine();
+			ImGui::TextDisabled("/ %02d:%02d", totalMins, totalSecs);
+
+			// Progress bar
+			float progress = (float)musicManager.GetSongPlaybackFrames() / (float)totalFrames;
+			if (progress > 1.0f) progress = 1.0f;
+			ImGui::ProgressBar(progress, ImVec2(-1, 0), "");
+		}
 	}
 
 	ImGui::Text("Enabled Tracks: %d / %d",
@@ -284,8 +216,9 @@ void JukeboxWindow::DrawTrackList() {
 
 	const auto& allTracks = musicManager.GetAllTracks();
 
-	float windowHeight = ImGui::GetWindowSize().y;
-	float childHeight = windowHeight - 220.0f;
+	// Fill the remaining vertical space so only this track container scrolls
+	// (the window itself has NoScrollbar — no second scrollbar).
+	float childHeight = ImGui::GetContentRegionAvail().y;
 	if (childHeight < 100.0f) childHeight = 100.0f;
 
 	ImGui::BeginChild("##TrackList", ImVec2(0, childHeight), true);

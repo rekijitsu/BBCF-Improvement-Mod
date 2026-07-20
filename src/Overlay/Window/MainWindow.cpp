@@ -505,10 +505,6 @@ void MainWindow::DrawMusicSection() const
 		musicManager.PlayNextTrack();
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Play Next Random")) {
-		musicManager.PlayNextRandomTrack();
-	}
-	ImGui::SameLine();
 	if (ImGui::Button("Open Jukebox")) {
 		m_pWindowContainer->GetWindow(WindowType_Jukebox)->ToggleOpen();
 	}

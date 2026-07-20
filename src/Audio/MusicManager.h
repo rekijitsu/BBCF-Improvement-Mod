@@ -43,7 +43,22 @@ public:
     void PlayTrack(int trackId, bool recordHistory = true);
     void PlayNextTrack();
     void PlayPreviousTrack();
-    void PlayNextRandomTrack();
+    // True when there is an earlier track to step back to in the play history.
+    bool CanGoPrevious() const { return m_historyIndex > 0; }
+
+    // True when actually in a match (Training / Challenge / local VS / online),
+    // i.e. MatchState_Fight — the only time the jukebox drives music.
+    bool IsInMatch() const;
+
+    // True when the Jukebox should show playback info (current track / timer):
+    // in the match scene and NOT in the middle of leaving it via the confirm
+    // dialog. False at Character Select / menus and during the exit transition,
+    // so the UI shows "None" / 00:00 instead of a track that stopped playing.
+    bool ShouldShowPlayback() const;
+
+    // True when the mod has taken over BGM (played a custom track via XACT) and
+    // thus left non-native state in Bank[13] that scene transitions must clean up.
+    bool IsControllingBgm() const { return m_modControllingBgm || m_customBgmLoaded; }
 
     void SetRotationMode(MusicRotationMode mode) { m_rotationMode = mode; }
     MusicRotationMode GetRotationMode() const { return m_rotationMode; }
@@ -63,11 +78,8 @@ public:
     int GetSongPlaybackFrames() const { return m_songPlaybackFrames; }
     std::string GetSongTimeString() const;
 
-    void SetRotationInterval(int frames) { m_rotationIntervalFrames = frames; }
-    int GetRotationInterval() const { return m_rotationIntervalFrames; }
-
     // Effective advance threshold: the current track's true duration (read from
-    // its XACT wave bank) when known, otherwise the configurable fallback interval.
+    // its XACT wave bank) when known, otherwise the precomputed per-track table.
     int GetRotationThresholdFrames() const;
     int GetCurrentTrackDurationFrames() const { return m_currentTrackDurationFrames; }
 
@@ -92,26 +104,7 @@ public:
     // Character Select show the original song as if the playlist never cycled.
     void RestoreAnchorForSceneExit();
 
-    int GetLastMatchState() const { return m_lastMatchState; }
-    void SetAutoAdvanceOnReset(bool val) { m_autoAdvanceOnReset = val; }
-    bool IsAutoAdvanceOnReset() const { return m_autoAdvanceOnReset; }
-
     void ResetRotationTimer() { m_framesSinceLastChange = 0; m_songPlaybackFrames = 0; }
-
-    // Diagnostic: dump audioMgr state to log
-    static void DumpAudioMgrState();
-
-    // Diagnostic: read-only memory scan for BGM track ID candidates
-    void RunDiagnosticScan();
-    void RunDifferentialScan();
-    void RunStringPointerScan();
-    void UpdateDiagnosticScan();
-    bool IsDiagnosticRunning() const { return m_diagState != DiagState_Idle && m_diagState != DiagState_Done; }
-    int GetDiagnosticProgress() const { return m_diagProgress; }
-    int GetDiagnosticCandidateCount() const { return (int)m_diagCandidates.size(); }
-    const std::vector<std::pair<int*, int>>& GetDiagnosticCandidates() const { return m_diagCandidates; }
-    int GetDifferentialResultCount() const { return (int)m_diagDifferential.size(); }
-    const std::vector<std::pair<int*, int>>& GetDifferentialResults() const { return m_diagDifferential; }
 
     static int* s_musicSelectX;
     static int* s_musicSelectY;
@@ -132,6 +125,8 @@ private:
     void ShufflePlaylist();
     int SelectNextTrack();
     void DetectSceneExitAndUnload();
+    void RecordPlaybackHistory(int trackId);
+    bool PlayTrackPhysically(uintptr_t modBase, int trackId, const char* bgmName, int* outDurationFrames, int presentedId);
 
     std::vector<MusicTrack> m_tracks;
     std::map<int, bool> m_trackEnabled;
@@ -156,12 +151,12 @@ private:
     std::vector<int> m_playbackHistory;
     int m_historyIndex = -1;
 
+    // Last-resort advance threshold (frames) used only if a track's length is
+    // somehow unknown; every known track has a real duration (wave bank / table).
     static const int MIN_FRAMES_BETWEEN_CHANGES = 7200;
-    int m_rotationIntervalFrames = 7200;
     // True length of the currently-playing track in frames (60fps), read from its
-    // XACT wave bank. 0 = unknown -> fall back to m_rotationIntervalFrames.
+    // XACT wave bank. 0 = unknown -> use the precomputed per-track table.
     int m_currentTrackDurationFrames = 0;
-    int m_lastMatchState = -1;
     int m_lastGameState = -1;      // last GameState (scene); for scene-exit detection
     bool m_customBgmLoaded = false; // true once we've taken over BGM (needs soft-reset on exit)
     bool m_modControllingBgm = false; // true once the mod is the authority on the current track
@@ -187,26 +182,6 @@ public:
     // Called from the render path (the dialog's message id is only present in the
     // render-phase UI buffer). Updates m_dialogSeenInRender for Update() to act on.
     void PollDialogRenderPhase();
-private:
-    bool m_autoAdvanceOnReset = true;
-
-    // Diagnostic scan state
-    enum DiagState {
-        DiagState_Idle,
-        DiagState_Scanning,
-        DiagState_Reconfirming,
-        DiagState_Done
-    };
-
-    DiagState m_diagState = DiagState_Idle;
-    int m_diagProgress = 0;
-    int m_diagScanId = -1;
-    uintptr_t m_diagScanAddr = 0;
-    std::vector<std::pair<int*, int>> m_diagCandidates; // (address, value at scan time)
-    std::vector<std::pair<int*, int>> m_diagConfirmed;  // candidates that persisted across frames
-    std::vector<std::pair<int*, int>> m_diagDifferential; // addresses that held old ID after menu change
-    int m_diagReconfirmFrames = 0;
-    bool m_diagDifferentialMode = false;
 };
 
 MusicManager& GetMusicManager();

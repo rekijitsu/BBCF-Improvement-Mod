@@ -1,5 +1,6 @@
 #include "MatchState.h"
 
+#include "Audio/MusicManager.h"
 #include "Core/interfaces.h"
 #include "Core/logger.h"
 #include "Game/gamestates.h"
@@ -65,6 +66,14 @@ void MatchState::OnMatchRematch()
 {
 	LOG(2, "MatchState::OnMatchRematch\n");
 
+	// If the jukebox deviated from the original track, our direct-XACT state in
+	// Bank[13] stalls the match summary / rematch transition (black screen). The
+	// summary needs a BGM actually present in Bank[13] (the non-deviated case has
+	// the native stage BGM there), so RELOAD the original (anchor) track rather
+	// than clearing the bank. Fires here (at the match event) before the summary
+	// loads; RestoreAnchorForSceneExit no-ops unless the mod took over BGM.
+	GetMusicManager().RestoreAnchorForSceneExit();
+
 	g_interfaces.pPaletteManager->OnMatchRematch(
 		g_interfaces.player1,
 		g_interfaces.player2
@@ -76,6 +85,13 @@ void MatchState::OnMatchRematch()
 void MatchState::OnMatchEnd()
 {
 	LOG(2, "MatchState::OnMatchEnd\n");
+
+	// Clear the mod's custom BGM footprint at match end so the game's native
+	// post-match transition (summary / Character Select / Main Menu) doesn't stall
+	// on our direct-XACT state. Only when the mod took over BGM; idempotent with
+	// the Character Select hook.
+	if (GetMusicManager().IsControllingBgm())
+		GetMusicManager().ClearBgmForSceneExit();
 
 	g_interfaces.pGameModeManager->EndGameMode();
 

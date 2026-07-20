@@ -9,6 +9,7 @@ public:
 	~JukeboxWindow() override = default;
 
 protected:
+	void BeforeDraw() override;
 	void Draw() override;
 
 private:

@@ -74,7 +74,7 @@ WindowContainer::WindowContainer()
 		new ReplayRewindWindow("Replay Rewind", true, *this, ImGuiWindowFlags_NoTitleBar));
 
 	AddWindow(WindowType_Jukebox,
-		new JukeboxWindow("Jukebox", true, ImGuiWindowFlags_AlwaysAutoResize));
+		new JukeboxWindow("Jukebox", true, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoCollapse));
 }
 
 

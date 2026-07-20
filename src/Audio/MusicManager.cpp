@@ -490,8 +490,6 @@ void MusicManager::Update() {
     if (!m_confirmDialogActive && g_gameVals.pMatchState && *g_gameVals.pMatchState == MatchState_Fight) {
         ChangeMusicIfNeeded();
     }
-
-    UpdateDiagnosticScan();
 }
 
 // The confirm dialog's message id (format 'e' + 3 digits, e.g. "e144"/"e384") is
@@ -513,8 +511,6 @@ void MusicManager::PollDialogRenderPhase() {
         return p[0] == 'e' && isDigit(p[1]) && isDigit(p[2]) && isDigit(p[3]);
     };
 
-    static int diagTimer = 0;
-    bool logDiag = (++diagTimer % 120 == 0);
     bool seen = false;
     __try {
         // Signal 1: the dialog's message id (e.g. "e144") at this slot. It's
@@ -542,13 +538,6 @@ void MusicManager::PollDialogRenderPhase() {
                 }
             }
         }
-
-        if (logDiag) {
-            LogMusic("MusicManager: [render-diag] @0x613900=%08x btn0x613884=%08x -> dialog %s\n",
-                *(const unsigned int*)(base + 0x613900),
-                *(const unsigned int*)(base + 0x613884),
-                seen ? "UP" : "down");
-        }
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
         seen = false;
@@ -556,7 +545,36 @@ void MusicManager::PollDialogRenderPhase() {
     m_dialogSeenInRender = seen;
 }
 
+bool MusicManager::IsInMatch() const {
+	// "In a match" = the match SCENE is active (stage intro, the fight, and round
+	// results), i.e. GameState_InMatch — covers Training / Challenge / local VS /
+	// online. Using the scene (not just MatchState_Fight) means the song timer
+	// starts when the stage BGM actually begins during the intro, not a few
+	// seconds late at the fight countdown.
+	return g_gameVals.pGameState && *g_gameVals.pGameState == GameState_InMatch;
+}
+
+bool MusicManager::ShouldShowPlayback() const {
+	// Show playback info while in the match scene, but NOT while we're in the
+	// post-dialog debounce (m_dialogClosedTimer > 0) — that window covers the
+	// exit transition to Character Select / Main Menu, where the track is no
+	// longer playing, so the UI should read "None" / 00:00 there.
+	return IsInMatch() && m_dialogClosedTimer == 0;
+}
+
 void MusicManager::UpdateMusicState() {
+	// Log match-state transitions (helps debug round/scene transitions such as the
+	// VS round-finish). Logs only on change, not every frame.
+	{
+		static int s_lastMatchStateLog = -1;
+		int ms = (g_gameVals.pMatchState) ? *g_gameVals.pMatchState : -1;
+		if (ms != s_lastMatchStateLog) {
+			LogMusic("MusicManager: MatchState %d -> %d (currentTrack=%d, modControlling=%d, customLoaded=%d)\n",
+				s_lastMatchStateLog, ms, m_currentTrackId, m_modControllingBgm ? 1 : 0, m_customBgmLoaded ? 1 : 0);
+			s_lastMatchStateLog = ms;
+		}
+	}
+
 	// Read the ACTUAL playing BGM ID from the audio engine, not the menu cursor
 	int gameMusicId = -1;
 
@@ -572,21 +590,6 @@ void MusicManager::UpdateMusicState() {
 
 	if (gameMusicId < 0) return;
 
-	// Track match state for training mode reset detection
-	if (g_gameVals.pMatchState) {
-		int matchState = *g_gameVals.pMatchState;
-		if (m_lastMatchState == -1) {
-			m_lastMatchState = matchState;
-		}
-		if (matchState == MatchState_Initialization && m_lastMatchState == MatchState_Fight) {
-			LogMusic("MusicManager: Match reset detected\n");
-			if (m_enabled && m_autoAdvanceOnReset) {
-				m_framesSinceLastChange = GetRotationThresholdFrames() + 1;
-			}
-		}
-		m_lastMatchState = matchState;
-	}
-
 	// Detect if the game changed the music. Only while the mod is NOT in control:
 	// once we're rotating (m_modControllingBgm), m_currentTrackId is authoritative
 	// (set by PlayTrack) and audioMgr+0x1690 holds our supported "anchor" id, so we
@@ -599,6 +602,10 @@ void MusicManager::UpdateMusicState() {
 		// normally-selectable track, so remember it as the safe "anchor" we present
 		// back to the game while we play non-selectable tracks via XACT.
 		m_anchorTrackId = gameMusicId;
+
+		// Record the game-loaded track in the play history so "|< Previous" can
+		// return to the initially-loaded song (the one chosen at Character Select).
+		RecordPlaybackHistory(gameMusicId);
 
 		// Restart our playback timer and discover the track's true length from disk
 		// so rotation still advances at end-of-song.
@@ -621,14 +628,22 @@ void MusicManager::UpdateMusicState() {
 		}
 	}
 
-	m_framesSinceLastChange++;
-	m_songPlaybackFrames++;
+	// Tick the song/rotation timers while a track is loaded in the match scene.
+	// This includes the pause menu (the song keeps playing during pause). It stops
+	// during the actual exit transition and in menus/loading, via ShouldShowPlayback
+	// (in match scene AND not in the post-dialog exit debounce). The timer also
+	// starts from when the stage BGM begins during the intro, not the fight countdown.
+	if (m_currentTrackId >= 0 && ShouldShowPlayback()) {
+		m_framesSinceLastChange++;
+		m_songPlaybackFrames++;
+	}
 }
 
 int MusicManager::GetRotationThresholdFrames() const {
 	// Advance at the END OF THE SONG. Prefer the live duration read from the
-	// loaded wave bank; fall back to the precomputed table (generated from the
-	// game's audio data); only use the fixed interval as a last resort.
+	// loaded wave bank; otherwise use the precomputed table (generated from the
+	// game's audio data). The constant below is only a last-resort safety net for
+	// a track whose length is somehow unknown (all known tracks have a duration).
 	constexpr int MIN_PLAUSIBLE = 60; // 1s guard against a corrupt/short parse
 	if (m_currentTrackDurationFrames > MIN_PLAUSIBLE) {
 		return m_currentTrackDurationFrames;
@@ -637,12 +652,11 @@ int MusicManager::GetRotationThresholdFrames() const {
 	if (precomputed > MIN_PLAUSIBLE) {
 		return precomputed;
 	}
-	return (m_rotationIntervalFrames > 0) ? m_rotationIntervalFrames : MIN_FRAMES_BETWEEN_CHANGES;
+	return MIN_FRAMES_BETWEEN_CHANGES;
 }
 
 void MusicManager::ChangeMusicIfNeeded() {
-	// Advance at the end of the current song (true duration), falling back to the
-	// configurable interval only when the duration is unknown.
+	// Advance at the end of the current song (its true duration).
 	int threshold = GetRotationThresholdFrames();
 
 	if (m_framesSinceLastChange < threshold) {
@@ -729,370 +743,6 @@ int MusicManager::SelectNextTrack() {
     }
 
     return -1;
-}
-
-// ============================================================================
-// Diagnostic: Read-only memory scanner
-//
-// Scans all writable memory in the BBCF.exe module for addresses that contain
-// the current BGM track ID. Does NOT write anything — purely read-only.
-//
-// Runs over multiple frames to avoid stuttering:
-//   Phase 1 (Scanning): Walk memory pages, collect candidates
-//   Phase 2 (Reconfirming): Wait a few frames, re-check candidates to see
-//                           which ones persistently hold the track ID
-// ============================================================================
-
-void MusicManager::RunDiagnosticScan() {
-    if (m_diagState != DiagState_Idle) return;
-    if (!s_musicSelectX) {
-        LogMusic("[DIAG] Cannot scan: musicSelect_X is NULL\n");
-        return;
-    }
-
-    int trackId = *s_musicSelectX;
-    if (trackId < 0 || trackId > 999) {
-        LogMusic("[DIAG] Cannot scan: track ID %d out of range\n", trackId);
-        return;
-    }
-
-    HMODULE hMod = GetModuleHandleA("BBCF.exe");
-    if (!hMod) {
-        LogMusic("[DIAG] Cannot find BBCF.exe module\n");
-        return;
-    }
-
-    m_diagScanId = trackId;
-    m_diagScanAddr = (uintptr_t)hMod;
-    m_diagCandidates.clear();
-    m_diagConfirmed.clear();
-    m_diagDifferential.clear();
-    m_diagProgress = 0;
-    m_diagDifferentialMode = false;
-    m_diagState = DiagState_Scanning;
-
-    LogMusic("[DIAG] Starting read-only scan for track ID %d...\n", trackId);
-    LogMusic("[DIAG] BBCF.exe module base = %p\n", (void*)hMod);
-    LogMusic("[DIAG] musicSelect_X = %p, value = %d\n", (void*)s_musicSelectX, trackId);
-}
-
-void MusicManager::RunDifferentialScan() {
-    if (m_diagState != DiagState_Done) {
-        LogMusic("[DIAG] Run a normal scan first, then change the track in the menu.\n");
-        return;
-    }
-    if (m_diagConfirmed.empty()) {
-        LogMusic("[DIAG] No confirmed candidates from previous scan to compare.\n");
-        return;
-    }
-
-    int oldTrackId = m_diagScanId;
-    int currentMenuId = *s_musicSelectX;
-
-    LogMusic("[DIAG] === DIFFERENTIAL SCAN ===\n");
-    LogMusic("[DIAG] Previous scan track ID: %d\n", oldTrackId);
-    LogMusic("[DIAG] Current menu track ID:  %d\n", currentMenuId);
-
-    if (oldTrackId == currentMenuId) {
-        LogMusic("[DIAG] ERROR: Menu track ID hasn't changed! Go back to character select,\n");
-        LogMusic("[DIAG]        pick a DIFFERENT BGM track, then run this scan.\n");
-        return;
-    }
-
-    m_diagDifferential.clear();
-
-    // Check each confirmed candidate: does it still hold the OLD track ID?
-    // If yes → it's the audio engine state (didn't follow the menu change)
-    // If it now holds the NEW menu ID → it's a menu tracker (not audio engine)
-    for (auto& cand : m_diagConfirmed) {
-        int currentVal = -1;
-        bool readable = true;
-        __try {
-            currentVal = *cand.first;
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER) {
-            readable = false;
-        }
-
-        if (!readable) continue;
-
-        if (currentVal == oldTrackId) {
-            // This address still holds the OLD track ID even though the menu changed
-            // → This is likely the audio engine playback state!
-            m_diagDifferential.push_back({cand.first, currentVal});
-            LogMusic("[DIAG]   *** AUDIO ENGINE? *** %p = %d (held old ID %d after menu changed to %d)\n",
-                (void*)cand.first, currentVal, oldTrackId, currentMenuId);
-        }
-    }
-
-    LogMusic("[DIAG] === DIFFERENTIAL RESULTS ===\n");
-    LogMusic("[DIAG] Addresses that held old track ID %d after menu changed to %d:\n",
-        oldTrackId, currentMenuId);
-    LogMusic("[DIAG] Found %zu addresses that didn't follow the menu change.\n",
-        m_diagDifferential.size());
-
-    if (m_diagDifferential.empty()) {
-        LogMusic("[DIAG] All candidates followed the menu change. The audio engine may not\n");
-        LogMusic("[DIAG] store the track ID as a simple int, or it was updated already.\n");
-    } else if (m_diagDifferential.size() <= 10) {
-        LogMusic("[DIAG] These few addresses are the most likely audio engine state!\n");
-        LogMusic("[DIAG] Try writing a new track ID to one of these addresses.\n");
-    } else {
-        LogMusic("[DIAG] Still too many (%zu). Try changing back to the original track\n", m_diagDifferential.size());
-        LogMusic("[DIAG] and running another differential scan to narrow further.\n");
-    }
-}
-
-void MusicManager::RunStringPointerScan() {
-    if (!s_musicSelectX) {
-        LogMusic("[DIAG] Cannot scan: musicSelect_X is NULL\n");
-        return;
-    }
-
-    int trackId = *s_musicSelectX;
-    if (trackId < 0 || trackId > 999) {
-        LogMusic("[DIAG] Cannot scan: track ID %d out of range\n", trackId);
-        return;
-    }
-
-    HMODULE hMod = GetModuleHandleA("BBCF.exe");
-    if (!hMod) {
-        LogMusic("[DIAG] Cannot find BBCF.exe module\n");
-        return;
-    }
-
-    // BGM name table is at RVA 0x005DC4D0 (VA 0x009DC4D0 with base 0x00400000)
-    // But the module base may differ at runtime, so calculate from base
-    uintptr_t modBase = (uintptr_t)hMod;
-    uintptr_t bgmNameTable = modBase + 0x005DC4D0; // RVA from static analysis
-
-    // The table has ~100 entries, each 4 bytes (pointer to string)
-    // Find the entry for this track ID
-    // Table layout: entries 0-35 = tracks 0-35, entry 36 = track 50, etc.
-    // For tracks 0-35, table index = track ID
-    // For tracks 50-63, table index = track ID - 50 + 36
-    // For tracks 80-94, table index = track ID - 80 + 50
-    // For tracks 100+, table index continues...
-    // Simplest: scan the table for an entry whose string contains the track number
-
-    int tableIndex = -1;
-    char searchName[8];
-    snprintf(searchName, sizeof(searchName), "%03d_", trackId);
-
-    for (int i = 0; i < 120; i++) {
-        __try {
-            uintptr_t strPtr = *(uintptr_t*)(bgmNameTable + i * 4);
-            if (strPtr < modBase || strPtr > modBase + 0x160C000) continue;
-            const char* str = (const char*)strPtr;
-            // Check if string starts with "BGM_" followed by the track number
-            if (str[0] == 'B' && str[1] == 'G' && str[2] == 'M' && str[3] == '_') {
-                // Compare the 3-digit track number
-                if (str[4] == searchName[0] && str[5] == searchName[1] && str[6] == searchName[2]) {
-                    tableIndex = i;
-                    break;
-                }
-            }
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER) {
-            continue;
-        }
-    }
-
-    if (tableIndex < 0) {
-        LogMusic("[DIAG] Could not find track ID %d in BGM name table\n", trackId);
-        return;
-    }
-
-    uintptr_t stringVa = *(uintptr_t*)(bgmNameTable + tableIndex * 4);
-    const char* bgmName = (const char*)stringVa;
-
-    LogMusic("[DIAG] === STRING POINTER SCAN ===\n");
-    LogMusic("[DIAG] Track ID %d -> BGM name table index %d\n", trackId, tableIndex);
-    LogMusic("[DIAG] BGM name string: \"%s\" at VA 0x%08X\n", bgmName, (unsigned)stringVa);
-    LogMusic("[DIAG] Searching for pointer value 0x%08X in writable memory...\n", (unsigned)stringVa);
-
-    m_diagCandidates.clear();
-    m_diagConfirmed.clear();
-    m_diagDifferential.clear();
-    m_diagScanId = (int)stringVa; // Store the pointer value as our search target
-    m_diagScanAddr = modBase;
-    m_diagProgress = 0;
-    m_diagState = DiagState_Scanning;
-    m_diagDifferentialMode = true; // Mark this as a string pointer scan
-
-    LogMusic("[DIAG] Scan started (multi-frame, read-only)...\n");
-}
-
-void MusicManager::UpdateDiagnosticScan() {
-    if (m_diagState == DiagState_Idle || m_diagState == DiagState_Done) return;
-
-    if (m_diagState == DiagState_Scanning) {
-        HMODULE hMod = GetModuleHandleA("BBCF.exe");
-        uintptr_t modBase = (uintptr_t)hMod;
-        uintptr_t modEnd = modBase + 0x160C000;
-
-        // Scan a chunk of pages per frame to avoid stutter
-        const uintptr_t CHUNK_SIZE = 0x1000000; // 16MB per frame
-        uintptr_t scanEnd = m_diagScanAddr + CHUNK_SIZE;
-        if (scanEnd > modEnd) scanEnd = modEnd;
-
-        while (m_diagScanAddr < scanEnd) {
-            MEMORY_BASIC_INFORMATION mbi;
-            if (VirtualQuery((void*)m_diagScanAddr, &mbi, sizeof(mbi)) == 0) {
-                m_diagScanAddr += 0x1000;
-                continue;
-            }
-            // Only scan committed, writable, non-executable, non-guard pages
-            if (mbi.State == MEM_COMMIT &&
-                !(mbi.Protect & PAGE_GUARD) &&
-                !(mbi.Protect & PAGE_NOACCESS) &&
-                (mbi.Protect & (PAGE_READWRITE | PAGE_WRITECOPY))) {
-                uintptr_t pageEnd = (uintptr_t)mbi.BaseAddress + (uintptr_t)mbi.RegionSize;
-                for (uintptr_t p = (uintptr_t)mbi.BaseAddress; p + 4 <= pageEnd; p += 4) {
-                    __try {
-                        if (*(volatile int*)p == m_diagScanId) {
-                            m_diagCandidates.push_back({(int*)p, m_diagScanId});
-                        }
-                    }
-                    __except (EXCEPTION_EXECUTE_HANDLER) {
-                        // Skip this address on access violation
-                    }
-                }
-            }
-            m_diagScanAddr = (uintptr_t)mbi.BaseAddress + (uintptr_t)mbi.RegionSize;
-            if (m_diagScanAddr <= (uintptr_t)mbi.BaseAddress) break;
-        }
-
-        m_diagProgress = (int)(((m_diagScanAddr - modBase) * 100) / (modEnd - modBase));
-
-        if (m_diagScanAddr >= modEnd) {
-            if (m_diagDifferentialMode) {
-                LogMusic("[DIAG] String pointer scan complete. Found %d addresses containing pointer 0x%08X\n",
-                    (int)m_diagCandidates.size(), m_diagScanId);
-            } else {
-                LogMusic("[DIAG] Scan complete. Found %d addresses containing track ID %d\n",
-                    (int)m_diagCandidates.size(), m_diagScanId);
-            }
-
-            // Filter out the menu struct itself and nearby addresses
-            size_t before = m_diagCandidates.size();
-            m_diagCandidates.erase(
-                std::remove_if(m_diagCandidates.begin(), m_diagCandidates.end(),
-                    [this](const auto& pair) {
-                        uintptr_t c = (uintptr_t)pair.first;
-                        return c >= (uintptr_t)s_musicSelectX && c < (uintptr_t)s_musicSelectX + 0x200;
-                    }),
-                m_diagCandidates.end());
-            LogMusic("[DIAG] After filtering menu struct: %zu candidates (removed %zu)\n",
-                m_diagCandidates.size(), before - m_diagCandidates.size());
-
-            for (size_t i = 0; i < m_diagCandidates.size() && i < 50; i++) {
-                LogMusic("[DIAG]   [%zu] %p = 0x%08X\n", i,
-                    (void*)m_diagCandidates[i].first, m_diagCandidates[i].second);
-            }
-
-            if (m_diagCandidates.empty()) {
-                LogMusic("[DIAG] No candidates found. The audio engine may store the ID differently.\n");
-                m_diagState = DiagState_Done;
-            } else {
-                LogMusic("[DIAG] Waiting 120 frames to reconfirm candidates...\n");
-                m_diagState = DiagState_Reconfirming;
-                m_diagReconfirmFrames = 0;
-            }
-        }
-    }
-    else if (m_diagState == DiagState_Reconfirming) {
-        m_diagReconfirmFrames++;
-
-        // After 120 frames (~2 seconds), re-check which candidates still hold the track ID
-        if (m_diagReconfirmFrames >= 120) {
-            LogMusic("[DIAG] Reconfirming candidates after %d frames...\n", m_diagReconfirmFrames);
-
-            int currentGameId = *s_musicSelectX;
-            LogMusic("[DIAG] Current musicSelect_X value = %d (was %d)\n", currentGameId, m_diagScanId);
-
-            for (auto& cand : m_diagCandidates) {
-                int currentVal = -1;
-                bool readable = true;
-                __try {
-                    currentVal = *cand.first;
-                }
-                __except (EXCEPTION_EXECUTE_HANDLER) {
-                    readable = false;
-                }
-
-                if (!readable) {
-                    LogMusic("[DIAG]   UNREADABLE: %p (page became invalid)\n", (void*)cand.first);
-                    continue;
-                }
-
-                bool persisted = (currentVal == m_diagScanId);
-                bool tracksMenu = (currentVal == currentGameId);
-
-                if (persisted) {
-                    m_diagConfirmed.push_back({cand.first, currentVal});
-                    LogMusic("[DIAG]   PERSISTED: %p = %d (stable across 120 frames)\n",
-                        (void*)cand.first, currentVal);
-                } else if (tracksMenu) {
-                    LogMusic("[DIAG]   TRACKS MENU: %p = %d (follows musicSelect_X, not audio engine)\n",
-                        (void*)cand.first, currentVal);
-                } else {
-                    LogMusic("[DIAG]   CHANGED: %p = %d (was %d, now something else)\n",
-                        (void*)cand.first, currentVal, m_diagScanId);
-                }
-            }
-
-            LogMusic("[DIAG] === RESULTS ===\n");
-            LogMusic("[DIAG] Total candidates: %zu\n", m_diagCandidates.size());
-            LogMusic("[DIAG] Persisted (likely audio engine state): %zu\n", m_diagConfirmed.size());
-            LogMusic("[DIAG] These addresses held track ID %d consistently:\n", m_diagScanId);
-            for (size_t i = 0; i < m_diagConfirmed.size(); i++) {
-                LogMusic("[DIAG]   >>> %p = %d <<<\n",
-                    (void*)m_diagConfirmed[i].first, m_diagConfirmed[i].second);
-            }
-
-            if (m_diagConfirmed.empty()) {
-                LogMusic("[DIAG] No persistent candidates. Audio engine may use a different format.\n");
-                LogMusic("[DIAG] Try: select a different track in char select, enter training, run scan again.\n");
-            }
-
-            m_diagState = DiagState_Done;
-        }
-    }
-}
-// Dump key fields of the audio manager structure to the log for diagnostics.
-// Call this at any time (e.g., from a Jukebox button) to capture BGM state.
-void MusicManager::DumpAudioMgrState() {
-	HMODULE hMod = GetModuleHandleA("BBCF.exe");
-	if (!hMod) { LogMusic("MusicManager: DumpAudioMgrState - BBCF.exe not found\n"); return; }
-	uintptr_t modBase = (uintptr_t)hMod;
-	uintptr_t audioMgrAddr = modBase + AUDIO_MGR_RVA;
-	LogMusic("MusicManager: === audioMgr DUMP ===\n");
-	__try {
-		LogMusic("MusicManager:   [0x0000]=0x%08X [0x0004]=0x%08X [0x0008]=0x%08X [0x000C]=0x%08X\n",
-			*(int*)audioMgrAddr, *(int*)(audioMgrAddr+4), *(int*)(audioMgrAddr+8), *(int*)(audioMgrAddr+12));
-		LogMusic("MusicManager:   [0x0104]=0x%08X [0x0108]=0x%08X [0x010C]=0x%08X [0x0110]=0x%08X\n",
-			*(int*)(audioMgrAddr+0x104), *(int*)(audioMgrAddr+0x108), *(int*)(audioMgrAddr+0x10C), *(int*)(audioMgrAddr+0x110));
-		int slotBase = (int)(audioMgrAddr + 0x118);
-		for (int si = 0; si < 4; si++) {
-			int off = si * 0x710;
-			LogMusic("MusicManager:   slot[%d] +0x000=0x%08X +0x004=0x%08X +0x008=0x%08X +0x00C=0x%08X +0x010=0x%08X +0x014=0x%08X +0x018=0x%08X +0x700=0x%08X\n",
-				si,
-				*(int*)(slotBase + off), *(int*)(slotBase + off + 4), *(int*)(slotBase + off + 8), *(int*)(slotBase + off + 12),
-				*(int*)(slotBase + off + 0x10), *(int*)(slotBase + off + 0x14), *(int*)(slotBase + off + 0x18),
-				*(int*)(slotBase + off + 0x700));
-		}
-		LogMusic("MusicManager:   selSlot[0] +0x00=0x%08X +0x04=0x%08X +0x08=0x%08X +0x0C=0x%08X +0x10=0x%08X +0x14=0x%08X +0x18=0x%08X +0x1C=0x%08X\n",
-			*(int*)(audioMgrAddr+0x1648), *(int*)(audioMgrAddr+0x164C), *(int*)(audioMgrAddr+0x1650), *(int*)(audioMgrAddr+0x1654),
-			*(int*)(audioMgrAddr+0x1658), *(int*)(audioMgrAddr+0x165C), *(int*)(audioMgrAddr+0x1660), *(int*)(audioMgrAddr+0x1664));
-		LogMusic("MusicManager:   selSlot[1] +0x00=0x%08X +0x04=0x%08X +0x08=0x%08X +0x0C=0x%08X +0x10=0x%08X +0x14=0x%08X +0x18=0x%08X +0x1C=0x%08X\n",
-			*(int*)(audioMgrAddr+0x1668), *(int*)(audioMgrAddr+0x166C), *(int*)(audioMgrAddr+0x1670), *(int*)(audioMgrAddr+0x1674),
-			*(int*)(audioMgrAddr+0x1678), *(int*)(audioMgrAddr+0x167C), *(int*)(audioMgrAddr+0x1680), *(int*)(audioMgrAddr+0x1684));
-		LogMusic("MusicManager:   [0x168C]=%d [0x1690]=%d (trackId) [0x2610]=0x%08X (XACT flag)\n",
-			*(int*)(audioMgrAddr+0x168C), *(int*)(audioMgrAddr+0x1690), *(int*)(audioMgrAddr+0x2610));
-	} __except (EXCEPTION_EXECUTE_HANDLER) {
-		LogMusic("MusicManager:   (could not read audioMgr)\n");
-	}
 }
 
 static int CallPlaySoundObject(uintptr_t playSoundObjAddr, void* playController, void* soundObj, const char* path, int* voiceHandleOut) {
@@ -1342,7 +992,7 @@ static int GetTrackDurationFramesFromPac(int trackId) {
 //   - Bank[13] of CSoundEngine_XACT singleton is the BGM bank
 //   - CSoundEngine_XACT singleton at modBase + 0x623630 (accessor RVA 0x00E1A0)
 // ============================================================================
-static bool PlayTrackPhysically(uintptr_t modBase, int trackId, const char* bgmName, int* outDurationFrames, int presentedId) {
+bool MusicManager::PlayTrackPhysically(uintptr_t modBase, int trackId, const char* bgmName, int* outDurationFrames, int presentedId) {
 	if (outDurationFrames) *outDurationFrames = 0;
 	uintptr_t audioMgrAddr = modBase + AUDIO_MGR_RVA;
 	uintptr_t playControllerAddr = modBase + PLAY_CONTROLLER_RVA;
@@ -1383,23 +1033,21 @@ static bool PlayTrackPhysically(uintptr_t modBase, int trackId, const char* bgmN
 				stopWrapper(bank13, &stopIndex);
 				LogMusic("MusicManager: Stopped BGM source[0] via Bank[13]->vtable[0x1C]\n");
 
-				// Clear the existing Sound Bank and Wave Bank in Bank[13]
-				typedef void (__thiscall *BankClearFuncType)(void* bank);
-				BankClearFuncType clearBank = (BankClearFuncType)(modBase + 0x051890);
-				clearBank(bank13);
-				LogMusic("MusicManager: Cleared Bank[13] XACT banks\n");
-
-				// Re-initialize the bank cue array with 1 cue to allow registration functions to execute
+				// PRESERVE the game's native stage bank: do NOT Clear Bank[13]. Clear
+				// destroys the native bank, which is what made the match-summary
+				// reinitialization black-screen. The custom bank is registered in a
+				// second slot alongside the native one (below). We still re-init the
+				// cue array so the registration functions can execute.
 				typedef void (__thiscall *BankInitCuesFuncType)(void* bank, int cueCount);
 				BankInitCuesFuncType initCues = (BankInitCuesFuncType)(modBase + 0x0510D0); // Method 1
 				initCues(bank13, 1);
-				
+
 				// Zero-initialize the cue array structure past the vtable pointer to avoid dereferencing garbage on play failures
 				void* cues_ptr = *(void**)((char*)bank13 + 0x90);
 				if (cues_ptr) {
 					memset((char*)cues_ptr + 4, 0, 0x98 - 4);
 				}
-				LogMusic("MusicManager: Re-initialized and zeroed Bank[13] cues array\n");
+				LogMusic("MusicManager: Re-initialized Bank[13] cues (native bank preserved)\n");
 			}
 		}
 
@@ -1684,17 +1332,21 @@ void MusicManager::PlayTrack(int trackId, bool recordHistory) {
 
 	// Record in playback history for Previous/Next navigation.
 	if (recordHistory) {
-		// Drop any "forward" history (we're branching from the current position).
-		if (m_historyIndex >= 0 && m_historyIndex < (int)m_playbackHistory.size() - 1) {
-			m_playbackHistory.erase(m_playbackHistory.begin() + m_historyIndex + 1, m_playbackHistory.end());
-		}
-		m_playbackHistory.push_back(trackId);
-		m_historyIndex = (int)m_playbackHistory.size() - 1;
-		// Bound the history so it can't grow without limit.
-		if (m_playbackHistory.size() > 200) {
-			m_playbackHistory.erase(m_playbackHistory.begin());
-			m_historyIndex--;
-		}
+		RecordPlaybackHistory(trackId);
+	}
+}
+
+void MusicManager::RecordPlaybackHistory(int trackId) {
+	// Drop any "forward" history (we're branching from the current position).
+	if (m_historyIndex >= 0 && m_historyIndex < (int)m_playbackHistory.size() - 1) {
+		m_playbackHistory.erase(m_playbackHistory.begin() + m_historyIndex + 1, m_playbackHistory.end());
+	}
+	m_playbackHistory.push_back(trackId);
+	m_historyIndex = (int)m_playbackHistory.size() - 1;
+	// Bound the history so it can't grow without limit.
+	if (m_playbackHistory.size() > 200) {
+		m_playbackHistory.erase(m_playbackHistory.begin());
+		m_historyIndex--;
 	}
 }
 
@@ -1725,32 +1377,6 @@ void MusicManager::PlayPreviousTrack() {
     } else {
         LogMusic("MusicManager: PlayPreviousTrack - already at start of history\n");
     }
-}
-
-void MusicManager::PlayNextRandomTrack() {
-    LogMusic("MusicManager: PlayNextRandomTrack() called, currentTrackId=%d\n", m_currentTrackId);
-    std::vector<MusicTrack> enabledTracks = GetEnabledTracks();
-    if (enabledTracks.empty()) {
-        LogMusic("MusicManager: PlayNextRandomTrack - no enabled tracks!\n");
-        return;
-    }
-
-    static std::mt19937 rng(std::time(nullptr));
-    std::uniform_int_distribution<> dist(0, (int)enabledTracks.size() - 1);
-
-    if (enabledTracks.size() == 1) {
-        PlayTrack(enabledTracks[0].id);
-        return;
-    }
-
-    int selectedIndex = dist(rng);
-    while (enabledTracks[selectedIndex].id == m_currentTrackId) {
-        selectedIndex = dist(rng);
-    }
-
-    LogMusic("MusicManager: PlayNextRandomTrack - selected index=%d, track=%s (id=%d)\n",
-        selectedIndex, enabledTracks[selectedIndex].name.c_str(), enabledTracks[selectedIndex].id);
-    PlayTrack(enabledTracks[selectedIndex].id);
 }
 
 void MusicManager::ShufflePlaylist() {
@@ -2017,8 +1643,6 @@ void MusicManager::SavePreferences() {
     file << "RotationMode=" << modeInt << "\n";
 file << "RepeatAll=" << (m_repeatAll ? "1" : "0") << "\n";
 	file << "RepeatSingle=" << (m_repeatSingle ? "1" : "0") << "\n";
-	file << "RotationIntervalFrames=" << m_rotationIntervalFrames << "\n";
-	file << "AutoAdvanceOnReset=" << (m_autoAdvanceOnReset ? "1" : "0") << "\n";
 
 	file.close();
     LOG(2, "MusicManager: Saved preferences\n");
@@ -2063,11 +1687,6 @@ void MusicManager::LoadPreferences() {
                 m_repeatAll = (value == "1");
 } else if (key == "RepeatSingle") {
 				m_repeatSingle = (value == "1");
-			} else if (key == "RotationIntervalFrames") {
-				m_rotationIntervalFrames = std::stoi(value);
-				if (m_rotationIntervalFrames < 1800) m_rotationIntervalFrames = 1800;
-			} else if (key == "AutoAdvanceOnReset") {
-				m_autoAdvanceOnReset = (value == "1");
 			}
 		}
     }
@@ -2085,8 +1704,6 @@ void MusicManager::ResetPreferences() {
 	m_rotationMode = MusicRotationMode::Sequential;
 	m_repeatAll = false;
 	m_repeatSingle = false;
-	m_rotationIntervalFrames = 7200;
-	m_autoAdvanceOnReset = true;
 	SavePreferences();
     LOG(2, "MusicManager: Preferences reset - all tracks enabled\n");
 }
