@@ -15,6 +15,7 @@
 #include "Overlay/Window/FrameHistory/FrameHistoryWindow.h"
 #include "Overlay/Window/FrameAdvantage/FrameAdvantageWindow.h"
 #include "Overlay/Window/ReplayRewindWindow.h"
+#include "Overlay/Window/JukeboxWindow.h"
 
 #include "Core/info.h"
 #include "Core/logger.h"
@@ -71,6 +72,9 @@ WindowContainer::WindowContainer()
 	
 	AddWindow(WindowType_ReplayRewind,
 		new ReplayRewindWindow("Replay Rewind", true, *this, ImGuiWindowFlags_NoTitleBar));
+
+	AddWindow(WindowType_Jukebox,
+		new JukeboxWindow("Jukebox", true, ImGuiWindowFlags_AlwaysAutoResize));
 }
 
 

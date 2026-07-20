@@ -15,6 +15,8 @@
 #include "Overlay/Widget/ActiveGameModeWidget.h"
 #include "Overlay/Widget/GameModeSelectWidget.h"
 #include "Overlay/Widget/StageSelectWidget.h"
+#include "Audio/MusicManager.h"
+#include "Overlay/WindowContainer/WindowType.h"
 
 #include <sstream>
 
@@ -84,6 +86,7 @@ void MainWindow::Draw()
 	DrawFrameAdvantageSection();
 	DrawAvatarSection();
 	DrawControllerSettingSection();
+	DrawMusicSection();
 	DrawLoadedSettingsValuesSection();
 	DrawUtilButtons();
 
@@ -445,6 +448,70 @@ void MainWindow::DrawControllerSettingSection() const {
 	}
 	ImGui::SameLine();
 	ImGui::ShowHelpMarker("Swap the p1 and p2 controller positions. This can be used to play locally with a single controller and a keyboard as this will force the single controller to be in p2 position while the keyboard is always p1.");
+}
+
+void MainWindow::DrawMusicSection() const
+{
+	if (!ImGui::CollapsingHeader("Music"))
+		return;
+
+	MusicManager& musicManager = GetMusicManager();
+
+	ImGui::HorizontalSpacing();
+	const MusicTrack* currentTrack = musicManager.GetCurrentTrack();
+	ImGui::Text("Current track: %s", currentTrack ? currentTrack->name.c_str() : "None");
+
+	ImGui::HorizontalSpacing();
+	bool enabled = musicManager.IsEnabled();
+	if (ImGui::Checkbox("Enable music rotation", &enabled)) {
+		musicManager.SetEnabled(enabled);
+		musicManager.SavePreferences();
+	}
+
+	ImGui::HorizontalSpacing();
+	bool repeatAll = musicManager.IsRepeatAll();
+	if (ImGui::Checkbox("Repeat All", &repeatAll)) {
+		musicManager.SetRepeatAll(repeatAll);
+		musicManager.SavePreferences();
+	}
+	ImGui::SameLine();
+	bool repeatSingle = musicManager.IsRepeatSingle();
+	if (ImGui::Checkbox("Repeat Single", &repeatSingle)) {
+		musicManager.SetRepeatSingle(repeatSingle);
+		musicManager.SavePreferences();
+	}
+
+	ImGui::HorizontalSpacing();
+	int rotationMode = static_cast<int>(musicManager.GetRotationMode());
+	ImGui::Text("Mode:");
+	ImGui::SameLine();
+	if (ImGui::RadioButton("Random", &rotationMode, 0)) {
+		musicManager.SetRotationMode(MusicRotationMode::Random);
+		musicManager.SavePreferences();
+	}
+	ImGui::SameLine();
+	if (ImGui::RadioButton("Sequential", &rotationMode, 1)) {
+		musicManager.SetRotationMode(MusicRotationMode::Sequential);
+		musicManager.SavePreferences();
+	}
+	ImGui::SameLine();
+	if (ImGui::RadioButton("Shuffle", &rotationMode, 2)) {
+		musicManager.SetRotationMode(MusicRotationMode::Shuffle);
+		musicManager.SavePreferences();
+	}
+
+	ImGui::HorizontalSpacing();
+	if (ImGui::Button("Play Next")) {
+		musicManager.PlayNextTrack();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Play Next Random")) {
+		musicManager.PlayNextRandomTrack();
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("Open Jukebox")) {
+		m_pWindowContainer->GetWindow(WindowType_Jukebox)->ToggleOpen();
+	}
 }
 void MainWindow::DrawLinkButtons() const
 {

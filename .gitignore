@@ -1,3 +1,4 @@
-.vs/
+# Build output
 bin/
 build/
+.vs/

@@ -17,6 +17,7 @@ Join the [BB Improvement Mod Discord Server](https://discord.gg/j2mCX9s) to disc
 - Adds wakeup action thru training dummy slots
 - Adds gap action thru training dummy slots
 - Adds local replay file loading
+- Adds an in-game **Jukebox** for Training mode: rotate the game's own BGM (random / sequential / shuffle), with per-track true-length auto-advance, per-category enable/disable, and click-to-play — toggle with the Jukebox hotkey (default `F6`)
 - more experimental features
 
 

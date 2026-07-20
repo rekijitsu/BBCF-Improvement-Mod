@@ -14,6 +14,7 @@
 #include <string>
 #include "Web/update_check.h"
 #include "Game/ReplayFiles/ReplayFileManager.h"
+#include "Audio/MusicManager.h"
 
 
 
@@ -558,6 +559,14 @@ void __declspec(naked)GetFrameCounter()
 
 	_asm
 	{
+		pushad
+	}
+
+	GetMusicManager().Update();
+
+	_asm
+	{
+		popad
 		push eax
 		mov eax, esi
 		add eax, 0Ch

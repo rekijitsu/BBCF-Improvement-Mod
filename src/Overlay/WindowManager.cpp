@@ -11,6 +11,7 @@
 #include "Core/Settings.h"
 #include "Core/utils.h"
 #include "Web/update_check.h"
+#include "Audio/MusicManager.h"
 
 #include <imgui.h>
 #include <imgui_impl_dx9.h>
@@ -21,6 +22,7 @@
 int keyToggleMainWindow;
 int keyToggleRoomWindow;
 int keyToggleHud;
+int keyToggleJukeboxWindow;
 
 WindowManager* WindowManager::m_instance = nullptr;
 
@@ -124,6 +126,9 @@ bool WindowManager::Initialize(void *hwnd, IDirect3DDevice9 *device)
 	keyToggleHud = Settings::getButtonValue(Settings::settingsIni.toggleHUDbutton);
 	m_pLogger->Log("[system] HUD toggling key set to '%s'\n", Settings::settingsIni.toggleHUDbutton.c_str());
 
+	keyToggleJukeboxWindow = Settings::getButtonValue(Settings::settingsIni.toggleJukeboxButton);
+	m_pLogger->Log("[system] Jukebox toggling key set to '%s'\n", Settings::settingsIni.toggleJukeboxButton.c_str());
+
 	// Load custom palettes
 
 	g_interfaces.pPaletteManager->LoadAllPalettes();
@@ -135,6 +140,9 @@ bool WindowManager::Initialize(void *hwnd, IDirect3DDevice9 *device)
 	///////
 
 	srand(time(NULL));
+
+	// Initialize MusicManager
+	MusicManager::GetInstance().Initialize();
 
 	StartAsyncUpdateCheck();
 	//StartAsyncReplayUpload();
@@ -209,6 +217,10 @@ void WindowManager::Render()
 		return;
 	}
 
+	// Latch whether the "return to Character Select?" confirm dialog is visible
+	// (its message id is only present in this render-phase UI buffer).
+	GetMusicManager().PollDialogRenderPhase();
+
 	if (g_interfaces.pSteamApiHelper->IsSteamOverlayActive())
 	{
 		return;
@@ -272,6 +284,11 @@ void WindowManager::HandleButtons()
 	if (ImGui::IsKeyPressed(keyToggleHud) && g_gameVals.pIsHUDHidden)
 	{
 		*g_gameVals.pIsHUDHidden ^= 1;
+	}
+
+	if (ImGui::IsKeyPressed(keyToggleJukeboxWindow))
+	{
+		m_windowContainer->GetWindow(WindowType_Jukebox)->ToggleOpen();
 	}
 }
 

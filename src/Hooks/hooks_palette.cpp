@@ -5,6 +5,7 @@
 #include "Core/interfaces.h"
 #include "Core/logger.h"
 #include "Game/gamestates.h"
+#include "Audio/MusicManager.h"
 
 DWORD GetCharObjPointersJmpBackAddr = 0;
 void __declspec(naked)GetCharObjPointers()
@@ -89,12 +90,46 @@ void __declspec(naked)GetGameStateCharacterSelect()
 {
 	LOG_ASM(2, "GetGameStateCharacterSelect\n");
 
-	//
-
+	// The game is about to enter Character Select. Clean up the mod's scratch BGM
+	// (stop Bank[13], null scratch slot 0x3E) and present the selectable anchor
+	// track. Slot 0x3F already holds the anchor (the mod never overwrote it), so
+	// the game's exit validation sees a selectable track -> no red debug screen.
 	__asm
 	{
+		pushad
+	}
+	GetMusicManager().UnloadCustomBgm();
+	__asm
+	{
+		popad
 		mov dword ptr[ebx + 10Ch], 6
 		jmp[GetGameStateCharacterSelectJmpBackAddr]
+	}
+}
+
+DWORD OnEnterCharSelectFuncJmpBackAddr = 0;
+void __declspec(naked) OnEnterCharSelectFuncEntry()
+{
+	// Hook on the ENTRY of the "enter character select" function (the one that
+	// later does `mov [ebx+10Ch],6`). Force-clear the mod's BGM footprint HERE —
+	// before the function's XACT-init / BGM loader run — leaving Bank[13] EMPTY so
+	// the game rebuilds it natively. Reloading the anchor through our direct-COM
+	// pipeline (the old RestoreAnchorForSceneExit) re-created foreign bank state
+	// that the game's Character Select validation still rejected (red debug
+	// screen) even though the presented track id was a valid, selectable one.
+	__asm
+	{
+		pushad
+	}
+	GetMusicManager().ClearBgmForSceneExit();
+	__asm
+	{
+		popad
+		// Re-execute the overwritten 9-byte prologue we replaced with the jump.
+		push ebp
+		mov ebp, esp
+		sub esp, 244h
+		jmp[OnEnterCharSelectFuncJmpBackAddr]
 	}
 }
 
@@ -206,6 +241,13 @@ bool placeHooks_palette()
 
 	GetGameStateCharacterSelectJmpBackAddr = HookManager::SetHook("GetGameStateCharacterSelect", "\xc7\x83\x0c\x01\x00\x00\x06\x00\x00\x00\xe8",
 		"xxxxxxxxxxx", 10, GetGameStateCharacterSelect);
+
+	// Entry of the "enter character select" function (prologue + security cookie +
+	// `mov [ebp-0x244],ecx`), so we can restore the anchor track before its early
+	// XACT-init call. Overwrite the 9-byte prologue; the hook re-executes it.
+	OnEnterCharSelectFuncJmpBackAddr = HookManager::SetHook("OnEnterCharSelectFuncEntry",
+		"\x55\x8b\xec\x81\xec\x44\x02\x00\x00\xa1\x00\x00\x00\x00\x33\xc5\x89\x45\xfc\x53\x56\x57\x89\x8d\xbc\xfd\xff\xff\xe8",
+		"xxxxxxxxxx????xxxxxxxxxxxxxxx", 9, OnEnterCharSelectFuncEntry);
 
 	ForceBloomOnJmpBackAddr = HookManager::SetHook("ForceBloomOn", "\x83\xfe\x15\x75", "xxxx", 5, ForceBloomOn, false);
 	restoredForceBloomOffAddr = ForceBloomOnJmpBackAddr + HookManager::GetBytesFromAddr("ForceBloomOn", 4, 1);

@@ -1,0 +1,205 @@
+Filename,OST_Name,Context
+000_btl_rg.pac,Rebellion,Ragna the Bloodedge
+001_btl_jn.pac,Lust SIN,Jin Kisaragi
+002_btl_no.pac,Bullet Dance,Noel Vermillion
+003_btl_rc.pac,Queen of rose,Rachel Alucard
+004_btl_tk.pac,Catus Carnival,Taokaka
+005_btl_tg.pac,MOTOR HEAD,Iron Tager
+006_btl_lc.pac,Oriental Flower,Litchi Faye-Ling
+007_btl_ar.pac,Thin RED Line,Arakune
+008_btl_bn.pac,Gale (烈風),Bang Shishigami
+009_btl_ca.pac,Marionette Purple,Carl Clover
+010_btl_ha.pac,Gluttony Fang,Hazama
+011_btl_ny.pac,Awakening The Chaos,Nu-13
+012_btl_tb.pac,Condemnation Wings,Tsubaki Yayoi
+013_btl_hz.pac,Endless Despair,Hazama (Susano'o Unit)
+014_btl_mu.pac,Sword of Doom,Mu-12
+015_btl_mk.pac,Alexandrite,Makoto Nanaya
+016_btl_vh.pac,Howling Moon II,Valkenhayn R. Hellsing
+017_btl_pt.pac,Active Angel II,Platinum the Trinity
+018_btl_rl.pac,Plastic Night,Relius Clover
+019_btl_iz.pac,Justice Sword,Izayoi
+020_btl_am.pac,BUSHIN,Amane Nishiki
+021_btl_bl.pac,Spirit of Fire,Bullet
+022_btl_az.pac,The Tyrant,Azrael
+023_btl_kg.pac,Black aggression,Kagura Mutsuki
+024_btl_kk.pac,Science Fiction,Kokonoe
+025_btl_tm.pac,Silent Scream,Yuki Terumi
+026_btl_ce.pac,Crystal Forest,Celica A. Mercury
+027_btl_rm.pac,SUSANOOH,Hakumen
+028_btl_hb.pac,in the shadows,Hibiki Kohaku
+029_btl_ph.pac,Walpurgisnacht,Nine the Phantom
+030_btl_nt.pac,Jaeger,Naoto Kurogane
+031_btl_mi.pac,YOMOTSUHIRASAKA,Izanami
+032_btl_su.pac,MUST DIE,Susano'o
+033_btl_es.pac,conciliation,Es
+034_btl_ma.pac,VARIABLE HEART,Mai Natsume
+035_btl_jb.pac,STAND UNRIVALED,Jubei
+050_btl_rgvsjn.pac,Under Heaven Destruction,Ragna vs. Jin
+051_btl_novsjn.pac,Imperial Code,Noel vs. Jin
+052_btl_rcvsrg.pac,White Requiem,Rachel vs. Ragna
+053_btl_rgvshz.pac,Nightmare Fiction,Ragna vs. Hazama
+054_btl_tbvsno.pac,Memory of Tears,Tsubaki vs. Noel
+055_btl_tbvsjn.pac,Childish killer II,Tsubaki vs. Jin
+056_btl_arvslc.pac,Weak Executioner,Arakune vs. Litchi
+057_btl_rlvsca.pac,X-matic,Relius vs. Carl
+058_btl_rlvsvh.pac,Dissonance,Relius vs. Valkenhayn
+059_btl_havsiz.pac,in JUSTICE,Hakumen vs. Izayoi
+060_btl_rgvsha.pac,Black & White,Ragna vs. Hakumen
+061_btl_phvsXXX.pac,Reincarnation,Nine vs. Celica/Kokonoe/Jubei
+062_btl_rgvsmi.pac,Bloodline,Ragna/Jin vs. Izanami
+063_btl_havssu.pac,God of War,Hakumen vs. Susano'o
+080_btl_bosshz.pac,Endless Despair,Boss: Hazama
+081_btl_bossrg.pac,Black Onslaught,Boss: Ragna (Unlimited)
+082_btl_douchara.pac,Blood Pain,Mirror Match
+083_btl_bangthem.pac,Reppuu,Bang's Theme (Vocal)
+084_btl_bangthem_short.pac,Reppuu (Short),Bang's Theme (Short)
+085_btl_seven.pac,Sector7,Sector 7
+086_btl_sixheroes.pac,SIX-HEROES,Six Heroes
+087_btl_bangthem2.pac,Omae no Tettsui ni Kugi wo Ute,Bang's Theme II
+088_btl_bangthem2_short.pac,Omae no Tettsui ni Kugi wo Ute (Short),Bang's Theme II (Short)
+089_btl_boss.pac,Boss Theme,Arcade Boss
+090_btl_highlander.pac,Highlander,Bullet's Theme
+091_btl_bossmi.pac,THE WORLD END,Boss: Izanami
+092_btl_bosssu.pac,Hakaishin (破壊神),Boss: Susano'o
+094_btl_esvsXXX.pac,END GAZER,Es vs. Celica/Nine
+100_opening.pac,CENTRALFICTION,Arcade Opening
+101_staffroll.pac,Twilight tear,Credits
+102_ending.pac,Story Ending,Story Ending
+103_opening2.pac,TRUE-BLUE,Console Opening
+104_staffroll2.pac,Credits,Credits
+150_cs_opening.pac,CS Opening,CS Opening
+152_cs_staffroll.pac,Credits,CS Staff Roll
+200_title.pac,a drop,Title Screen
+201_charaselect.pac,Next force,Character Select
+202_introduction.pac,CF interlude,Introduction
+203_continue.pac,CF continue,Continue Screen
+204_mainmenu.pac,CF Field 1,Main Menu
+205_abyss.pac,Neo ABYSS,Abyss Mode
+206_mainmenu2.pac,CF Field 2,Main Menu (V2)
+207_Lobby.pac,Online 207 Lobby,Online Lobby
+208_Lobby2.pac,Online 208 Lobby2,Online Lobby
+209_Lobby3.pac,Online 209 Lobby3,Online Lobby
+210_Lobby4.pac,Online 210 Lobby4,Online Lobby
+211_Lobby5.pac,Online 211 Lobby5,Online Lobby
+212_Lobby6.pac,Online 212 Lobby6,Online Lobby
+250_vsinfo.pac,CF VS,Versus Screen
+251_rannyu.pac,Challenger Approaching,Story Event
+252_winner.pac,CF winner,Victory Screen
+253_gameover.pac,CF gameover,Game Over Screen
+300_smop.pac,Story Mode OP,Story BGM
+301_nichijo.pac,Story: Everyday,Story BGM
+302_btl_tbvsjn.pac,Childish killer II,Story BGM
+303_memory.pac,Story: Memory,Story BGM
+304_btl_no.pac,Bullet Dance,Story BGM
+305_fuan.pac,Story: Unease,Story BGM
+306_inaka.pac,Story: Countryside,Story BGM
+307_dorama.pac,Story: Drama,Story BGM
+308_nichijo_b.pac,Story: Everyday B,Story BGM
+309_nichijo_e.pac,Story: Everyday E,Story BGM
+310_bgm_ar.pac,Thin RED Line,Story BGM
+311_hurry.pac,Story: Hurry,Story BGM
+312_horror.pac,Story: Horror,Story BGM
+313_btl_sixheroes.pac,SIX-HEROES,Story BGM
+314_god.pac,Story: God,Story BGM
+315_gothic.pac,Story: Gothic,Story BGM
+316_Techno.pac,Story: Techno,Story BGM
+317_nichijo_a.pac,Story: Everyday A,Story BGM
+318_nichijo_d.pac,Story: Everyday D,Story BGM
+319_btl_am.pac,BUSHIN,Story BGM
+320_wafuu.pac,Story: Japanese Style,Story BGM
+321_btl_az.pac,The Tyrant,Story BGM
+322_kinpaku.pac,Story: Tension,Story BGM
+400_nichijo_a.pac,Story: Everyday A,Story BGM
+401_nichijo_b.pac,Story: Everyday B,Story BGM
+403_nichijo_d.pac,Story: Everyday D,Story BGM
+404_nichijo_e.pac,Story: Everyday E,Story BGM
+405_nichijo_f.pac,Story: Everyday F,Story BGM
+406_dorama.pac,Story: Drama,Story BGM
+407_horror.pac,Story: Horror,Story BGM
+408_hurry.pac,Story: Hurry,Story BGM
+409_gothic.pac,Story: Gothic,Story BGM
+410_pop.pac,Story: Pop,Story BGM
+411_techno.pac,Story: Techno,Story BGM
+412_gyagu.pac,Story: Gag,Story BGM
+413_kinpaku.pac,Story: Tension,Story BGM
+414_memory.pac,Story: Memory,Story BGM
+415_shissou.pac,Story: Sprint,Story BGM
+416_god.pac,Story: God,Story BGM
+417_shinpi.pac,Story: Mystery,Story BGM
+418_sad.pac,Story: Sad,Story BGM
+419_inaka.pac,Story: Countryside,Story BGM
+420_fuan.pac,Story: Unease,Story BGM
+421_wafuu.pac,Story: Japanese Style,Story BGM
+422_sougen.pac,Story: Grassland,Story BGM
+423_kuroki.pac,Story: Dark,Story BGM
+450_smop.pac,Story Mode OP,Story BGM
+451_smop.pac,Story Mode OP,Story BGM
+452_mkd_appear.pac,Story: Mikado Appears,Story BGM
+453_noelpoem.pac,Story: Noel's Poem,Story BGM
+454_tsubakisasayaki.pac,Story: Tsubaki's Whisper,Story BGM
+455_mkd_highlander.pac,Story: Mikado Highlander,Story BGM
+456_masterunit.pac,Story: Master Unit,Story BGM
+500_pandoratears.pac,Pandora Tears,Story BGM
+501_shinsou.pac,Story: Truth,Story BGM
+502_stardust_memory.pac,Stardust Memory ~永遠の日々~,Story BGM
+600_astral_a.pac,Astral Finish (A),Astral Finish A
+601_astral_b.pac,Astral Finish (B),Astral Finish B
+602_astral_c.pac,Astral Finish (C),Astral Finish C
+603_cs_astral_a.pac,Astral Finish (A),CS Astral Finish A
+604_cs_astral_b.pac,Astral Finish (B),CS Astral Finish B
+605_cs_astral_c.pac,Astral Finish (C),CS Astral Finish C
+606_v2_astral_a.pac,Astral Finish (A),V2 Astral Finish A
+607_v2_astral_b.pac,Astral Finish (B),V2 Astral Finish B
+608_v2_astral_c.pac,Astral Finish (C),V2 Astral Finish C
+609_cs_astral_a.pac,Astral Finish (A),CS Astral Finish A
+610_cs_astral_b.pac,Astral Finish (B),CS Astral Finish B
+611_cs_astral_c.pac,Astral Finish (C),CS Astral Finish C
+900_btl_rg_old.pac,Rebellion (Old),Ragna the Bloodedge
+901_btl_jn_old.pac,Lust SIN (Old),Jin Kisaragi
+902_btl_no_old.pac,Bullet Dance (Old),Noel Vermillion
+903_btl_rc_old.pac,Queen of rose (Old),Rachel Alucard
+904_btl_tk_old.pac,Catus Carnival (Old),Taokaka
+905_btl_tg_old.pac,MOTOR HEAD (Old),Iron Tager
+906_btl_lc_old.pac,Oriental Flower (Old),Litchi Faye-Ling
+907_btl_ar_old.pac,Thin RED Line (Old),Arakune
+908_btl_bn_old.pac,Gale (烈風) (Old),Bang Shishigami
+909_btl_ca_old.pac,Marionette Purple (Old),Carl Clover
+910_btl_ha_old.pac,Gluttony Fang (Old),Hazama
+911_btl_ny_old.pac,Awakening The Chaos (Old),Nu-13
+912_btl_tb_old.pac,Condemnation Wings (Old),Tsubaki Yayoi
+913_btl_hz_old.pac,Endless Despair (Old),Hazama (Susano'o Unit)
+914_btl_mu_old.pac,Sword of Doom (Old),Mu-12
+915_btl_mk_old.pac,Alexandrite (Old),Makoto Nanaya
+916_btl_vh_old.pac,Howling Moon II (Old),Valkenhayn R. Hellsing
+917_btl_pt_old.pac,Active Angel II (Old),Platinum the Trinity
+918_btl_rl_old.pac,Plastic Night (Old),Relius Clover
+950_btl_rgvsjn_old.pac,Under Heaven Destruction (Old),Ragna vs Jin
+951_btl_novsjn_old.pac,Imperial Code (Old),Noel vs Jin
+952_btl_rcvsrg_old.pac,White Requiem (Old),Rachel vs Ragna
+953_btl_rgvshz_old.pac,Nightmare Fiction (Old),Ragna vs Hazama
+954_btl_tbvsno_old.pac,Memory of Tears (Old),Tsubaki vs Noel
+955_btl_tbvsjn_old.pac,Childish killer II (Old),Tsubaki vs Jin
+956_btl_arvslc_old.pac,Weak Executioner (Old),Arakune vs Litchi
+957_btl_rlvsca_old.pac,X-matic (Old),Relius vs. Carl
+980_btl_bosshz_old.pac,Endless Despair (Old),Boss Hazama
+981_btl_bossrg_old.pac,Black Onslaught (Old),Boss: Ragna (Unlimited)
+982_btl_douchara_old.pac,Blood Pain (Old),Mirror Match
+bgm_end_ar.pac,Arcade Ending,Arakune
+bgm_end_bn.pac,Arcade Ending,Bang Shishigami
+bgm_end_ca.pac,Arcade Ending,Carl Clover
+bgm_end_ha.pac,Arcade Ending,Hazama
+bgm_end_hz.pac,Arcade Ending,Hazama (Susano'o Unit)
+bgm_end_jn.pac,Arcade Ending,Jin Kisaragi
+bgm_end_lc.pac,Arcade Ending,Litchi Faye-Ling
+bgm_end_mk.pac,Arcade Ending,Makoto Nanaya
+bgm_end_mu.pac,Arcade Ending,μ-12
+bgm_end_no.pac,Arcade Ending,Noel Vermillion
+bgm_end_ny.pac,Arcade Ending,ν-13 / Λ-11
+bgm_end_pt.pac,Arcade Ending,Platinum the Trinity
+bgm_end_rc.pac,Arcade Ending,Rachel Alucard
+bgm_end_rg.pac,Arcade Ending,Ragna the Bloodedge
+bgm_end_tb.pac,Arcade Ending,Tsubaki Yayoi
+bgm_end_tg.pac,Arcade Ending,Iron Tager
+bgm_end_tk.pac,Arcade Ending,Taokaka
+bgm_end_vh.pac,Arcade Ending,Valkenhayn R. Hellsing
