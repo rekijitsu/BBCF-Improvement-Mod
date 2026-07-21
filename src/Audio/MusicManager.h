@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <chrono>
 
 struct MusicTrack {
     int id;
@@ -107,6 +108,7 @@ public:
     // orphaned first. No-op unless the mod took over BGM.
     void RestoreNativeBgmForMatchEnd();
 
+    void OnMatchInit();
     void ResetRotationTimer() { m_framesSinceLastChange = 0; m_songPlaybackFrames = 0; }
 
     static int* s_musicSelectX;
@@ -167,6 +169,7 @@ private:
     int m_origSlot0Active = 1;
     int m_origSlot0State = 0;
     bool m_audioSlot0Captured = false;
+    std::chrono::steady_clock::time_point m_songStartTime;
 
     // "Return to Character Select?" confirm-dialog handling: restore the anchor
     // track while the dialog is up (so the exit sees a selectable track), suspend

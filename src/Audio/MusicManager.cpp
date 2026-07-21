@@ -130,6 +130,30 @@ static std::pair<int, const char*> UNKNOWN_TRACK_FILES[] = {
     { 952, "952_btl_rcvsrg_old" },{ 953, "953_btl_rgvshz_old" },
     { 954, "954_btl_tbvsno_old" },{ 955, "955_btl_tbvsjn_old" },
     { 956, "956_btl_arvslc_old" },{ 957, "957_btl_rlvsca_old" },
+    { 300, "300_smop" },         { 301, "301_nichijo" },     { 302, "302_btl_tbvsjn" },
+    { 303, "303_memory" },       { 304, "304_btl_no" },      { 305, "305_fuan" },
+    { 306, "306_inaka" },        { 307, "307_dorama" },      { 308, "308_nichijo_b" },
+    { 309, "309_nichijo_e" },    { 310, "310_bgm_ar" },      { 311, "311_hurry" },
+    { 312, "312_horror" },       { 313, "313_btl_sixheroes" },{ 314, "314_god" },
+    { 315, "315_gothic" },       { 316, "316_Techno" },      { 317, "317_nichijo_a" },
+    { 318, "318_nichijo_d" },    { 319, "319_btl_am" },      { 320, "320_wafuu" },
+    { 321, "321_btl_az" },       { 322, "322_kinpaku" },
+    { 400, "400_nichijo_a" },    { 401, "401_nichijo_b" },   { 403, "403_nichijo_d" },
+    { 404, "404_nichijo_e" },    { 405, "405_nichijo_f" },   { 406, "406_dorama" },
+    { 407, "407_horror" },       { 408, "408_hurry" },       { 409, "409_gothic" },
+    { 410, "410_pop" },          { 411, "411_techno" },      { 412, "412_gyagu" },
+    { 413, "413_kinpaku" },      { 414, "414_memory" },      { 415, "415_shissou" },
+    { 416, "416_god" },          { 417, "417_shinpi" },      { 418, "418_sad" },
+    { 419, "419_inaka" },        { 420, "420_fuan" },        { 421, "421_wafuu" },
+    { 422, "422_sougen" },       { 423, "423_kuroki" },
+    { 450, "450_smop" },         { 451, "451_smop" },        { 452, "452_mkd_appear" },
+    { 453, "453_noelpoem" },     { 454, "454_tsubakisasayaki" },{ 455, "455_mkd_highlander" },
+    { 456, "456_masterunit" },
+    { 500, "500_pandoratears" }, { 501, "501_shinsou" },     { 502, "502_stardust_memory" },
+    { 600, "600_astral_a" },     { 601, "601_astral_b" },    { 602, "602_astral_c" },
+    { 603, "603_cs_astral_a" },  { 604, "604_cs_astral_b" }, { 605, "605_cs_astral_c" },
+    { 606, "606_v2_astral_a" },  { 607, "607_v2_astral_b" }, { 608, "608_v2_astral_c" },
+    { 609, "609_cs_astral_a" },  { 610, "610_cs_astral_b" }, { 611, "611_cs_astral_c" },
 };
 
 const char* MusicManager::GetBgmFilename(int trackId) {
@@ -209,69 +233,69 @@ void MusicManager::BuildTrackList() {
     // BBCF Central Fiction BGM tracks
     // Track IDs match the numeric prefix of BGM filenames:
     // ...\Steam\steamapps\common\BlazBlue Centralfiction\data\Sound\BGM\{ID}_name.pac
-    m_tracks.push_back({ 0,  "Rebellion II (Ragna)", "btl" });
-    m_tracks.push_back({ 1,  "Lust SIN II (Jin)", "btl" });
-    m_tracks.push_back({ 2,  "Bullet Dance II (Noel)", "btl" });
-    m_tracks.push_back({ 3,  "Queen of rose II (Rachel)", "btl" });
-    m_tracks.push_back({ 4,  "Catus Carnival II (Taokaka)", "btl" });
-    m_tracks.push_back({ 5,  "MOTOR HEAD II (Tager)", "btl" });
-    m_tracks.push_back({ 6,  "Oriental Flower II (Litchi)", "btl" });
-    m_tracks.push_back({ 7,  "Thin RED Line II (Arakune)", "btl" });
-    m_tracks.push_back({ 8,  "Gale / BUSHIN II (Bang)", "btl" });
-    m_tracks.push_back({ 9,  "Marionette Purple II (Carl)", "btl" });
-    m_tracks.push_back({ 10, "Gluttony Fang II (Hazama)", "btl" });
-    m_tracks.push_back({ 11, "SUSANOOH II (Hakumen/Nu-13)", "btl" });
-    m_tracks.push_back({ 12, "Condemnation Wings II (Tsubaki)", "btl" });
-    m_tracks.push_back({ 13, "Endless Despair II (Hazama)", "btl" });
-    m_tracks.push_back({ 14, "The Tyrant II (Mu-12)", "btl" });
-    m_tracks.push_back({ 15, "Alexandrite II (Makoto)", "btl" });
-    m_tracks.push_back({ 16, "Howling Moon II (Valkenhayn)", "btl" });
-    m_tracks.push_back({ 17, "Active Angel II (Platinum)", "btl" });
-    m_tracks.push_back({ 18, "Nightmare Fiction II (Relius)", "btl" });
-    m_tracks.push_back({ 19, "Walpurgisnacht (Izayoi)", "btl" });
-    m_tracks.push_back({ 20, "X-matic (Amane)", "btl" });
-    m_tracks.push_back({ 21, "Highlander (Bullet)", "btl" });
-    m_tracks.push_back({ 22, "Sword of Doom (Azrael)", "btl" });
-    m_tracks.push_back({ 23, "The Origin (Kagura)", "btl" });
-    m_tracks.push_back({ 24, "Kokonoe", "btl" });
-    m_tracks.push_back({ 25, "Jaeger (Naoto)", "btl" });
+    m_tracks.push_back({ 0,  "Rebellion (Ragna)", "btl" });
+    m_tracks.push_back({ 1,  "Lust SIN (Jin)", "btl" });
+    m_tracks.push_back({ 2,  "Bullet Dance (Noel)", "btl" });
+    m_tracks.push_back({ 3,  "Queen of rose (Rachel)", "btl" });
+    m_tracks.push_back({ 4,  "Catus Carnival (Taokaka)", "btl" });
+    m_tracks.push_back({ 5,  "MOTOR HEAD (Tager)", "btl" });
+    m_tracks.push_back({ 6,  "Oriental Flower (Litchi)", "btl" });
+    m_tracks.push_back({ 7,  "Thin RED Line (Arakune)", "btl" });
+    m_tracks.push_back({ 8,  "REPPUU (Bang)", "btl" });
+    m_tracks.push_back({ 9,  "Marionette Purple (Carl)", "btl" });
+    m_tracks.push_back({ 10, "SUSANOOH (Hakumen)", "btl" });
+    m_tracks.push_back({ 11, "Awakening The Chaos (Nu-13)", "btl" });
+    m_tracks.push_back({ 12, "Condemnation Wings (Tsubaki)", "btl" });
+    m_tracks.push_back({ 13, "Gluttony Fang (Hazama)", "btl" });
+    m_tracks.push_back({ 14, "Sword of Doom (Mu-12)", "btl" });
+    m_tracks.push_back({ 15, "Alexandrite (Makoto)", "btl" });
+    m_tracks.push_back({ 16, "Howling Moon (Valkenhayn)", "btl" });
+    m_tracks.push_back({ 17, "Active Angel (Platinum)", "btl" });
+    m_tracks.push_back({ 18, "Plastic Night (Relius)", "btl" });
+    m_tracks.push_back({ 19, "Justice Sword (Izayoi)", "btl" });
+    m_tracks.push_back({ 20, "BUSIN (Amane)", "btl" });
+    m_tracks.push_back({ 21, "Spirit of Fire (Bullet)", "btl" });
+    m_tracks.push_back({ 22, "The Tyrant (Azrael)", "btl" });
+    m_tracks.push_back({ 23, "Black aggression (Kagura)", "btl" });
+    m_tracks.push_back({ 24, "Science Fiction (Kokonoe)", "btl" });
+    m_tracks.push_back({ 25, "Silent Scream (Terumi)", "btl" });
     m_tracks.push_back({ 26, "Crystal Forest (Celica)", "btl" });
-    m_tracks.push_back({ 27, "White Requiem (Ragna & Rachel)", "btl" });
+    m_tracks.push_back({ 27, "Awakening The Chaos (Nu-13 / Lambda-11)", "btl" });
     m_tracks.push_back({ 28, "in the shadows (Hibiki)", "btl" });
     m_tracks.push_back({ 29, "Walpurgisnacht (Nine)", "btl" });
-    m_tracks.push_back({ 30, "Terumi", "btl" });
-    m_tracks.push_back({ 31, "Awakening the Chaos (Nu-13/Lambda-11)", "btl" });
-    m_tracks.push_back({ 32, "Hakaishin (Susano'o)", "btl" });
+    m_tracks.push_back({ 30, "Jaeger (Naoto)", "btl" });
+    m_tracks.push_back({ 31, "YOMOTSUHIRASAKA (Izanami)", "btl" });
+    m_tracks.push_back({ 32, "MUST DIE (Susano'o)", "btl" });
     m_tracks.push_back({ 33, "conciliation (Es)", "btl" });
     m_tracks.push_back({ 34, "VARIABLE HEART (Mai)", "btl" });
     m_tracks.push_back({ 35, "STAND UNRIVALED (Jubei)", "btl" });
-    m_tracks.push_back({ 50, "Under Heaven Destruction II (Ragna vs Jin)", "vs" });
-    m_tracks.push_back({ 51, "Imperial Code II (Noel vs Jin)", "vs" });
-    m_tracks.push_back({ 52, "White Requiem II (Rachel vs Ragna)", "vs" });
-    m_tracks.push_back({ 53, "Nightmare Fiction II (Ragna vs Hazama)", "vs" });
-    m_tracks.push_back({ 54, "Memory of Tears II (Tsubaki vs Noel)", "vs" });
-    m_tracks.push_back({ 55, "Childish Killer II (Tsubaki vs Jin)", "vs" });
-    m_tracks.push_back({ 56, "Weak Executioner II (Arakune vs Litchi)", "vs" });
-    m_tracks.push_back({ 57, "Ragna vs Carl II", "vs" });
-    m_tracks.push_back({ 58, "Ragna vs Valkenhayn", "vs" });
-    m_tracks.push_back({ 59, "Hazama vs Izayoi", "vs" });
-    m_tracks.push_back({ 60, "Ragna vs Hazama", "vs" });
-    m_tracks.push_back({ 61, "Reincarnation (Nine vs Celica/Kokonoe)", "vs" });
-    m_tracks.push_back({ 62, "Ragna", "vs" });
-    m_tracks.push_back({ 63, "Hazama vs Susano'o", "vs" });
+    m_tracks.push_back({ 50, "Under Heaven Destruction (Ragna vs Jin)", "vs" });
+    m_tracks.push_back({ 51, "Imperial Code (Noel vs Jin)", "vs" });
+    m_tracks.push_back({ 52, "White Requiem (Rachel vs Ragna)", "vs" });
+    m_tracks.push_back({ 53, "Nightmare Fiction (Ragna vs Hazama)", "vs" });
+    m_tracks.push_back({ 54, "Memory of Tears (Tsubaki vs Noel)", "vs" });
+    m_tracks.push_back({ 55, "Childish killer (Tsubaki vs Jin)", "vs" });
+    m_tracks.push_back({ 56, "Weak Executioner (Arakune vs Litchi)", "vs" });
+    m_tracks.push_back({ 57, "X-matic (Relius vs Carl)", "vs" });
+    m_tracks.push_back({ 58, "Dissonance (Relius vs Valkenhayn)", "vs" });
+    m_tracks.push_back({ 59, "in JUSTICE (Hakumen vs Izayoi)", "vs" });
+    m_tracks.push_back({ 60, "Black $ White (Ragna vs Hakumen)", "vs" });
+    m_tracks.push_back({ 61, "Reincarnation (Nine vs Celica/Kokonoe/Jubei)", "vs" });
+    m_tracks.push_back({ 62, "Bloodline (Ragna/Jin vs Izanami)", "vs" });
+    m_tracks.push_back({ 63, "God of War (Hakumen vs Susano'o)", "vs" });
     m_tracks.push_back({ 80, "Endless Despair (Boss Hazama)", "boss" });
-    m_tracks.push_back({ 81, "Boss Ragna", "boss" });
-    m_tracks.push_back({ 82, "Douchara", "boss" });
-    m_tracks.push_back({ 83, "Bang", "boss" });
-    m_tracks.push_back({ 84, "Bang (Short)", "boss" });
-    m_tracks.push_back({ 85, "Seven", "boss" });
-    m_tracks.push_back({ 86, "Six Heroes", "boss" });
-    m_tracks.push_back({ 87, "Bang II", "boss" });
-    m_tracks.push_back({ 88, "Bang II (Short)", "boss" });
-    m_tracks.push_back({ 89, "Boss", "boss" });
-    m_tracks.push_back({ 90, "Highlander (Bullet)", "boss" });
-    m_tracks.push_back({ 91, "Boss Mai", "boss" });
-    m_tracks.push_back({ 92, "Hakaishin (Boss Susano'o)", "boss" });
+    m_tracks.push_back({ 81, "Black Onslaught (Boss Ragna)", "boss" });
+    m_tracks.push_back({ 82, "Blood Pain (Mirror Match)", "boss" });
+    m_tracks.push_back({ 83, "Bang%Bang%Bigbang% (Bang)", "boss" });
+    m_tracks.push_back({ 84, "Bang%Bang%Bigbang% (Short)", "boss" });
+    m_tracks.push_back({ 85, "Sector7 (Sector 7)", "boss" });
+    m_tracks.push_back({ 86, "SIX-HEROES (Six Heroes)", "boss" });
+    m_tracks.push_back({ 87, "OMAE NO TETTUI NI KUGI WO UTE (Bang)", "boss" });
+    m_tracks.push_back({ 88, "OMAE NO TETTUI NI KUGI WO UTE (Short)", "boss" });
+    m_tracks.push_back({ 89, "Boss Theme (Arcade Boss)", "boss" });
+    m_tracks.push_back({ 90, "THE HIGHLANDER (Bullet)", "boss" });
+    m_tracks.push_back({ 91, "THE WORLD END (Boss Izanami)", "boss" });
+    m_tracks.push_back({ 92, "HAKAISHIN (Boss Susano'o)", "boss" });
     m_tracks.push_back({ 94, "END GAZER (Es vs Celica/Nine)", "boss" });
     m_tracks.push_back({ 100, "CENTRALFICTION (Arcade Opening)", "sys" });
     m_tracks.push_back({ 101, "Twilight tear (Credits)", "sys" });
@@ -305,25 +329,95 @@ void MusicManager::BuildTrackList() {
     m_tracks.push_back({ 905, "MOTOR HEAD (Tager)", "old" });
     m_tracks.push_back({ 906, "Oriental Flower (Litchi)", "old" });
     m_tracks.push_back({ 907, "Thin RED Line (Arakune)", "old" });
-    m_tracks.push_back({ 908, "Gale (Bang)", "old" });
+    m_tracks.push_back({ 908, "REPPUU (Bang)", "old" });
     m_tracks.push_back({ 909, "Marionette Purple (Carl)", "old" });
-    m_tracks.push_back({ 910, "Gluttony Fang (Hazama)", "old" });
-    m_tracks.push_back({ 911, "SUSANOOH (Hakumen)", "old" });
+    m_tracks.push_back({ 910, "SUSANOOH (Hakumen)", "old" });
+    m_tracks.push_back({ 911, "Awakening The Chaos (Nu-13)", "old" });
     m_tracks.push_back({ 912, "Condemnation Wings (Tsubaki)", "old" });
-    m_tracks.push_back({ 913, "Endless Despair (Hazama)", "old" });
-    m_tracks.push_back({ 914, "The Tyrant (Mu-12)", "old" });
+    m_tracks.push_back({ 913, "Gluttony Fang (Hazama)", "old" });
+    m_tracks.push_back({ 914, "Sword of Doom (Mu-12)", "old" });
     m_tracks.push_back({ 915, "Alexandrite (Makoto)", "old" });
     m_tracks.push_back({ 916, "Howling Moon (Valkenhayn)", "old" });
     m_tracks.push_back({ 917, "Active Angel (Platinum)", "old" });
-    m_tracks.push_back({ 918, "Nightmare Fiction (Ragna vs Hazama)", "old" });
+    m_tracks.push_back({ 918, "Plastic Night (Relius)", "old" });
     m_tracks.push_back({ 950, "Under Heaven Destruction (Ragna vs Jin)", "old" });
     m_tracks.push_back({ 951, "Imperial Code (Noel vs Jin)", "old" });
     m_tracks.push_back({ 952, "White Requiem (Rachel vs Ragna)", "old" });
     m_tracks.push_back({ 953, "Nightmare Fiction (Ragna vs Hazama)", "old" });
     m_tracks.push_back({ 954, "Memory of Tears (Tsubaki vs Noel)", "old" });
-    m_tracks.push_back({ 955, "Childish Killer (Tsubaki vs Jin)", "old" });
+    m_tracks.push_back({ 955, "Childish killer (Tsubaki vs Jin)", "old" });
     m_tracks.push_back({ 956, "Weak Executioner (Arakune vs Litchi)", "old" });
-    m_tracks.push_back({ 957, "Ragna vs Carl", "old" });
+    m_tracks.push_back({ 957, "X-matic (Relius vs Carl)", "old" });
+
+    m_tracks.push_back({ 300, "Story Mode OP", "story" });
+    m_tracks.push_back({ 301, "Story: Everyday", "story" });
+    m_tracks.push_back({ 302, "Childish killer II", "story" });
+    m_tracks.push_back({ 303, "Story: Memory", "story" });
+    m_tracks.push_back({ 304, "Bullet Dance", "story" });
+    m_tracks.push_back({ 305, "Story: Unease", "story" });
+    m_tracks.push_back({ 306, "Story: Countryside", "story" });
+    m_tracks.push_back({ 307, "Story: Drama", "story" });
+    m_tracks.push_back({ 308, "Story: Everyday B", "story" });
+    m_tracks.push_back({ 309, "Story: Everyday E", "story" });
+    m_tracks.push_back({ 310, "Thin RED Line", "story" });
+    m_tracks.push_back({ 311, "Story: Hurry", "story" });
+    m_tracks.push_back({ 312, "Story: Horror", "story" });
+    m_tracks.push_back({ 313, "SIX-HEROES", "story" });
+    m_tracks.push_back({ 314, "Story: God", "story" });
+    m_tracks.push_back({ 315, "Story: Gothic", "story" });
+    m_tracks.push_back({ 316, "Story: Techno", "story" });
+    m_tracks.push_back({ 317, "Story: Everyday A", "story" });
+    m_tracks.push_back({ 318, "Story: Everyday D", "story" });
+    m_tracks.push_back({ 319, "BUSHIN", "story" });
+    m_tracks.push_back({ 320, "Story: Japanese Style", "story" });
+    m_tracks.push_back({ 321, "The Tyrant", "story" });
+    m_tracks.push_back({ 322, "Story: Tension", "story" });
+    m_tracks.push_back({ 400, "Story: Everyday A", "story" });
+    m_tracks.push_back({ 401, "Story: Everyday B", "story" });
+    m_tracks.push_back({ 403, "Story: Everyday D", "story" });
+    m_tracks.push_back({ 404, "Story: Everyday E", "story" });
+    m_tracks.push_back({ 405, "Story: Everyday F", "story" });
+    m_tracks.push_back({ 406, "Story: Drama", "story" });
+    m_tracks.push_back({ 407, "Story: Horror", "story" });
+    m_tracks.push_back({ 408, "Story: Hurry", "story" });
+    m_tracks.push_back({ 409, "Story: Gothic", "story" });
+    m_tracks.push_back({ 410, "Story: Pop", "story" });
+    m_tracks.push_back({ 411, "Story: Techno", "story" });
+    m_tracks.push_back({ 412, "Story: Gag", "story" });
+    m_tracks.push_back({ 413, "Story: Tension", "story" });
+    m_tracks.push_back({ 414, "Story: Memory", "story" });
+    m_tracks.push_back({ 415, "Story: Sprint", "story" });
+    m_tracks.push_back({ 416, "Story: God", "story" });
+    m_tracks.push_back({ 417, "Story: Mystery", "story" });
+    m_tracks.push_back({ 418, "Story: Sad", "story" });
+    m_tracks.push_back({ 419, "Story: Countryside", "story" });
+    m_tracks.push_back({ 420, "Story: Unease", "story" });
+    m_tracks.push_back({ 421, "Story: Japanese Style", "story" });
+    m_tracks.push_back({ 422, "Story: Grassland", "story" });
+    m_tracks.push_back({ 423, "Story: Dark", "story" });
+    m_tracks.push_back({ 450, "Story Mode OP", "story" });
+    m_tracks.push_back({ 451, "Story Mode OP", "story" });
+    m_tracks.push_back({ 452, "Story: Mikado Appears", "story" });
+    m_tracks.push_back({ 453, "Story: Noel's Poem", "story" });
+    m_tracks.push_back({ 454, "Story: Tsubaki's Whisper", "story" });
+    m_tracks.push_back({ 455, "Story: Mikado Highlander", "story" });
+    m_tracks.push_back({ 456, "Story: Master Unit", "story" });
+    m_tracks.push_back({ 500, "Pandora Tears", "story" });
+    m_tracks.push_back({ 501, "Story: Truth", "story" });
+    m_tracks.push_back({ 502, "Stardust Memory ~eternal days~", "story" });
+
+    m_tracks.push_back({ 600, "Astral Finish (A)", "astral" });
+    m_tracks.push_back({ 601, "Astral Finish (B)", "astral" });
+    m_tracks.push_back({ 602, "Astral Finish (C)", "astral" });
+    m_tracks.push_back({ 603, "Astral Finish (A)", "astral" });
+    m_tracks.push_back({ 604, "Astral Finish (B)", "astral" });
+    m_tracks.push_back({ 605, "Astral Finish (C)", "astral" });
+    m_tracks.push_back({ 606, "Astral Finish (A)", "astral" });
+    m_tracks.push_back({ 607, "Astral Finish (B)", "astral" });
+    m_tracks.push_back({ 608, "Astral Finish (C)", "astral" });
+    m_tracks.push_back({ 609, "Astral Finish (A)", "astral" });
+    m_tracks.push_back({ 610, "Astral Finish (B)", "astral" });
+    m_tracks.push_back({ 611, "Astral Finish (C)", "astral" });
 
     for (auto& track : m_tracks) {
         m_trackEnabled[track.id] = true;
@@ -360,6 +454,13 @@ void MusicManager::Initialize() {
     LoadPreferences();
     m_initialized = true;
     LogMusic("MusicManager initialized with %d tracks, enabled=%d\n", (int)m_tracks.size(), m_enabled);
+}
+
+void MusicManager::OnMatchInit() {
+    LogMusic("MusicManager: OnMatchInit - resetting BGM state\n");
+    if (m_customBgmLoaded || m_modControllingBgm) {
+        ClearBgmForSceneExit();
+    }
 }
 
 void MusicManager::Update() {
@@ -417,12 +518,15 @@ void MusicManager::Update() {
         LogMusic("MusicManager: Acquired musicSelect_X at frame level\n");
 
         if (s_musicSelectX) {
-            m_gameMusicId = *s_musicSelectX;
-            m_currentTrackId = m_gameMusicId;
-            for (const auto& track : m_tracks) {
-                if (track.id == m_gameMusicId) {
-                    m_currentTrack = &track;
-                    break;
+            int startupId = *s_musicSelectX;
+            if (GetBgmFilename(startupId)) { // ignore non-track garbage values
+                m_gameMusicId = startupId;
+                m_currentTrackId = startupId;
+                for (const auto& track : m_tracks) {
+                    if (track.id == startupId) {
+                        m_currentTrack = &track;
+                        break;
+                    }
                 }
             }
         }
@@ -543,6 +647,19 @@ void MusicManager::PollDialogRenderPhase() {
         seen = false;
     }
     m_dialogSeenInRender = seen;
+
+    // Update wall-clock timers in the render loop so they keep ticking even when paused.
+    if (!ShouldShowPlayback()) {
+        m_songStartTime = std::chrono::steady_clock::now();
+        m_songPlaybackFrames = 0;
+        m_framesSinceLastChange = 0;
+    } else if (m_currentTrackId >= 0 && IsInMatch() && !m_confirmDialogActive && !(m_gameMusicId >= 600 && m_gameMusicId <= 611)) {
+        auto now = std::chrono::steady_clock::now();
+        double elapsed = std::chrono::duration<double>(now - m_songStartTime).count();
+        int elapsedFrames = (int)(elapsed * 60.0);
+        m_songPlaybackFrames = elapsedFrames;
+        m_framesSinceLastChange = elapsedFrames;
+    }
 }
 
 bool MusicManager::IsInMatch() const {
@@ -602,11 +719,35 @@ void MusicManager::UpdateMusicState() {
 
 	if (gameMusicId < 0) return;
 
+	// Yield control to the game's native Astral Finish BGM if detected (IDs 600-611)
+	if (gameMusicId >= 600 && gameMusicId <= 611) {
+		if (m_customBgmLoaded || m_modControllingBgm) {
+			LogMusic("MusicManager: Astral Finish BGM %d detected. Yielding control.\n", gameMusicId);
+			ClearBgmForSceneExit();
+		}
+		return;
+	}
+
+	// audioMgr+0x1690 doesn't always hold a BGM track id: during matches and in
+	// some menus the game reuses it for unrelated values (observed: 96, 112 —
+	// neither exists as a track). Only accept values that map to a real BGM
+	// file, so a bogus read can't become the "anchor" we present to the game
+	// on scene exit (presenting a nonexistent BGM id to Character Select is
+	// exactly what makes its validation blow up).
+	bool validTrackId = (GetBgmFilename(gameMusicId) != nullptr);
+	if (!validTrackId && gameMusicId != m_currentTrackId) {
+		static int s_lastIgnoredBgmId = -1;
+		if (gameMusicId != s_lastIgnoredBgmId) {
+			LogMusic("MusicManager: Ignoring non-track BGM id %d from audioMgr+0x1690\n", gameMusicId);
+			s_lastIgnoredBgmId = gameMusicId;
+		}
+	}
+
 	// Detect if the game changed the music. Only while the mod is NOT in control:
 	// once we're rotating (m_modControllingBgm), m_currentTrackId is authoritative
 	// (set by PlayTrack) and audioMgr+0x1690 holds our supported "anchor" id, so we
 	// must not let it override the real track.
-	if (!m_modControllingBgm && gameMusicId != m_currentTrackId) {
+	if (validTrackId && !m_modControllingBgm && gameMusicId != m_currentTrackId) {
 		m_gameMusicId = gameMusicId;
 		m_currentTrackId = gameMusicId;
 
@@ -619,6 +760,7 @@ void MusicManager::UpdateMusicState() {
 		// so rotation still advances at end-of-song.
 		m_framesSinceLastChange = 0;
 		m_songPlaybackFrames = 0;
+		m_songStartTime = std::chrono::steady_clock::now();
 		m_currentTrackDurationFrames = GetTrackDurationFramesFromPac(gameMusicId);
 
 		m_currentTrack = nullptr;
@@ -634,16 +776,6 @@ void MusicManager::UpdateMusicState() {
 			LogMusic("MusicManager: Audio engine playing ID %d = \"%s\" (duration %d frames ~%02d:%02d)\n",
 				gameMusicId, m_currentTrack->name.c_str(), m_currentTrackDurationFrames, durSec / 60, durSec % 60);
 		}
-	}
-
-	// Tick the song/rotation timers while a track is loaded in the match scene.
-	// This includes the pause menu (the song keeps playing during pause). It stops
-	// during the actual exit transition and in menus/loading, via ShouldShowPlayback
-	// (in match scene AND not in the post-dialog exit debounce). The timer also
-	// starts from when the stage BGM begins during the intro, not the fight countdown.
-	if (m_currentTrackId >= 0 && ShouldShowPlayback()) {
-		m_framesSinceLastChange++;
-		m_songPlaybackFrames++;
 	}
 }
 
@@ -1279,6 +1411,20 @@ bool MusicManager::PlayTrackPhysically(uintptr_t modBase, int trackId, const cha
 	if (MusicManager::s_musicSelectX) *MusicManager::s_musicSelectX = presentedId;
 	if (MusicManager::s_musicSelectY) *MusicManager::s_musicSelectY = 0;
 
+	// Restore audioManager BGM slot 0 to its native (active) state.
+	// We deactivated it in STEP 1 to prevent race conditions during loading/registration.
+	// The game's training mode position reset checks if this slot is active.
+	__try {
+		if (m_audioSlot0Captured) {
+			*(int*)(audioMgrAddr + 0x118 + 0x00) = m_origSlot0Active;
+			*(int*)(audioMgrAddr + 0x118 + 0x04) = m_origSlot0State;
+		}
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		LogMusic("MusicManager: Failed to restore Slot 0 active status\n");
+	}
+
+	m_songStartTime = std::chrono::steady_clock::now();
 	LogMusic("MusicManager: PlayTrackPhysically completed\n");
 	return true;
 }

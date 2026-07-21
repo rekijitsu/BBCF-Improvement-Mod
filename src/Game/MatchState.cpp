@@ -20,6 +20,8 @@ void MatchState::OnMatchInit()
 
 	LOG(2, "MatchState::OnMatchInit\n");
 
+	GetMusicManager().OnMatchInit();
+
 	g_interfaces.pPaletteManager->LoadPaletteSettingsFile();
 	g_interfaces.pPaletteManager->OnMatchInit(g_interfaces.player1, g_interfaces.player2);
 
