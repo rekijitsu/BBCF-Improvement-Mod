@@ -62,15 +62,6 @@ void JukeboxWindow::DrawControls() {
 
 	// Repeat settings
 	ImGui::HorizontalSpacing();
-	bool repeatAll = musicManager.IsRepeatAll();
-	if (ImGui::Checkbox("Repeat All", &repeatAll)) {
-		musicManager.SetRepeatAll(repeatAll);
-		musicManager.SavePreferences();
-	}
-	ImGui::SameLine();
-	ImGui::ShowHelpMarker("When the playlist reaches the end, start over from the beginning");
-
-	ImGui::HorizontalSpacing();
 	bool repeatSingle = musicManager.IsRepeatSingle();
 	if (ImGui::Checkbox("Repeat Single", &repeatSingle)) {
 		musicManager.SetRepeatSingle(repeatSingle);
@@ -82,7 +73,7 @@ void JukeboxWindow::DrawControls() {
 	ImGui::Spacing();
 
 	// Play button — advance per the rotation mode (Sequential / Shuffle).
-	if (ImGui::Button("Next >|")) {
+	if (ImGui::Button("Play Next >|")) {
 		musicManager.PlayNextTrack();
 	}
 	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Play the next track (per the rotation mode)");
