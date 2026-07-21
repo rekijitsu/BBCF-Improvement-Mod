@@ -130,6 +130,8 @@ static std::pair<int, const char*> UNKNOWN_TRACK_FILES[] = {
     { 952, "952_btl_rcvsrg_old" },{ 953, "953_btl_rgvshz_old" },
     { 954, "954_btl_tbvsno_old" },{ 955, "955_btl_tbvsjn_old" },
     { 956, "956_btl_arvslc_old" },{ 957, "957_btl_rlvsca_old" },
+    { 980, "980_btl_bosshz_old" },{ 981, "981_btl_bossrg_old" },
+    { 982, "982_btl_douchara_old" },
     { 300, "300_smop" },         { 301, "301_nichijo" },     { 302, "302_btl_tbvsjn" },
     { 303, "303_memory" },       { 304, "304_btl_no" },      { 305, "305_fuan" },
     { 306, "306_inaka" },        { 307, "307_dorama" },      { 308, "308_nichijo_b" },
@@ -1724,6 +1726,10 @@ void MusicManager::RestoreNativeBgmForMatchEnd() {
 }
 
 void MusicManager::ClearBgmForSceneExit() {
+    if (!m_customBgmLoaded && !m_modControllingBgm) {
+        return;
+    }
+
     HMODULE hMod = GetModuleHandleA("BBCF.exe");
     if (!hMod) return;
     uintptr_t modBase = (uintptr_t)hMod;
