@@ -7,26 +7,26 @@ Filename,OST_Name,Context
 005_btl_tg.pac,MOTOR HEAD,Iron Tager
 006_btl_lc.pac,Oriental Flower,Litchi Faye-Ling
 007_btl_ar.pac,Thin RED Line,Arakune
-008_btl_bn.pac,Gale (烈風),Bang Shishigami
+008_btl_bn.pac,REPPUU,Bang Shishigami
 009_btl_ca.pac,Marionette Purple,Carl Clover
-010_btl_ha.pac,Gluttony Fang,Hazama
+010_btl_ha.pac,SUSANOOH,Hakumen
 011_btl_ny.pac,Awakening The Chaos,Nu-13
 012_btl_tb.pac,Condemnation Wings,Tsubaki Yayoi
-013_btl_hz.pac,Endless Despair,Hazama (Susano'o Unit)
+013_btl_hz.pac,Gluttony Fang,Hazama
 014_btl_mu.pac,Sword of Doom,Mu-12
 015_btl_mk.pac,Alexandrite,Makoto Nanaya
-016_btl_vh.pac,Howling Moon II,Valkenhayn R. Hellsing
-017_btl_pt.pac,Active Angel II,Platinum the Trinity
+016_btl_vh.pac,Howling Moon,Valkenhayn R. Hellsing
+017_btl_pt.pac,Active Angel,Platinum the Trinity
 018_btl_rl.pac,Plastic Night,Relius Clover
 019_btl_iz.pac,Justice Sword,Izayoi
-020_btl_am.pac,BUSHIN,Amane Nishiki
+020_btl_am.pac,BUSIN,Amane Nishiki
 021_btl_bl.pac,Spirit of Fire,Bullet
 022_btl_az.pac,The Tyrant,Azrael
 023_btl_kg.pac,Black aggression,Kagura Mutsuki
 024_btl_kk.pac,Science Fiction,Kokonoe
 025_btl_tm.pac,Silent Scream,Yuki Terumi
 026_btl_ce.pac,Crystal Forest,Celica A. Mercury
-027_btl_rm.pac,SUSANOOH,Hakumen
+027_btl_rm.pac,Awakening The Chaos,Nu-13 / Lambda-11
 028_btl_hb.pac,in the shadows,Hibiki Kohaku
 029_btl_ph.pac,Walpurgisnacht,Nine the Phantom
 030_btl_nt.pac,Jaeger,Naoto Kurogane
@@ -40,7 +40,7 @@ Filename,OST_Name,Context
 052_btl_rcvsrg.pac,White Requiem,Rachel vs. Ragna
 053_btl_rgvshz.pac,Nightmare Fiction,Ragna vs. Hazama
 054_btl_tbvsno.pac,Memory of Tears,Tsubaki vs. Noel
-055_btl_tbvsjn.pac,Childish killer II,Tsubaki vs. Jin
+055_btl_tbvsjn.pac,Childish killer,Tsubaki vs. Jin
 056_btl_arvslc.pac,Weak Executioner,Arakune vs. Litchi
 057_btl_rlvsca.pac,X-matic,Relius vs. Carl
 058_btl_rlvsvh.pac,Dissonance,Relius vs. Valkenhayn
@@ -52,14 +52,14 @@ Filename,OST_Name,Context
 080_btl_bosshz.pac,Endless Despair,Boss: Hazama
 081_btl_bossrg.pac,Black Onslaught,Boss: Ragna (Unlimited)
 082_btl_douchara.pac,Blood Pain,Mirror Match
-083_btl_bangthem.pac,Reppuu,Bang's Theme (Vocal)
-084_btl_bangthem_short.pac,Reppuu (Short),Bang's Theme (Short)
+083_btl_bangthem.pac,Bang%Bang%Bigbang%,Bang's Theme (Vocal)
+084_btl_bangthem_short.pac,Bang%Bang%Bigbang% (Short),Bang's Theme (Short)
 085_btl_seven.pac,Sector7,Sector 7
 086_btl_sixheroes.pac,SIX-HEROES,Six Heroes
-087_btl_bangthem2.pac,Omae no Tettsui ni Kugi wo Ute,Bang's Theme II
-088_btl_bangthem2_short.pac,Omae no Tettsui ni Kugi wo Ute (Short),Bang's Theme II (Short)
+087_btl_bangthem2.pac,OMAE NO TETTUI NI KUGI WO UTE,Bang's Theme II
+088_btl_bangthem2_short.pac,OMAE NO TETTUI NI KUGI WO UTE (Short),Bang's Theme II (Short)
 089_btl_boss.pac,Boss Theme,Arcade Boss
-090_btl_highlander.pac,Highlander,Bullet's Theme
+090_btl_highlander.pac,THE HIGHLANDER,Bullet's Theme
 091_btl_bossmi.pac,THE WORLD END,Boss: Izanami
 092_btl_bosssu.pac,Hakaishin (破壊神),Boss: Susano'o
 094_btl_esvsXXX.pac,END GAZER,Es vs. Celica/Nine
@@ -163,23 +163,23 @@ Filename,OST_Name,Context
 905_btl_tg_old.pac,MOTOR HEAD (Old),Iron Tager
 906_btl_lc_old.pac,Oriental Flower (Old),Litchi Faye-Ling
 907_btl_ar_old.pac,Thin RED Line (Old),Arakune
-908_btl_bn_old.pac,Gale (烈風) (Old),Bang Shishigami
+908_btl_bn_old.pac,REPPUU (Old),Bang Shishigami
 909_btl_ca_old.pac,Marionette Purple (Old),Carl Clover
-910_btl_ha_old.pac,Gluttony Fang (Old),Hazama
+910_btl_ha_old.pac,SUSANOOH (Old),Hakumen
 911_btl_ny_old.pac,Awakening The Chaos (Old),Nu-13
 912_btl_tb_old.pac,Condemnation Wings (Old),Tsubaki Yayoi
-913_btl_hz_old.pac,Endless Despair (Old),Hazama (Susano'o Unit)
+913_btl_hz_old.pac,Gluttony Fang (Old),Hazama
 914_btl_mu_old.pac,Sword of Doom (Old),Mu-12
 915_btl_mk_old.pac,Alexandrite (Old),Makoto Nanaya
-916_btl_vh_old.pac,Howling Moon II (Old),Valkenhayn R. Hellsing
-917_btl_pt_old.pac,Active Angel II (Old),Platinum the Trinity
+916_btl_vh_old.pac,Howling Moon (Old),Valkenhayn R. Hellsing
+917_btl_pt_old.pac,Active Angel (Old),Platinum the Trinity
 918_btl_rl_old.pac,Plastic Night (Old),Relius Clover
 950_btl_rgvsjn_old.pac,Under Heaven Destruction (Old),Ragna vs Jin
 951_btl_novsjn_old.pac,Imperial Code (Old),Noel vs Jin
 952_btl_rcvsrg_old.pac,White Requiem (Old),Rachel vs Ragna
 953_btl_rgvshz_old.pac,Nightmare Fiction (Old),Ragna vs Hazama
 954_btl_tbvsno_old.pac,Memory of Tears (Old),Tsubaki vs Noel
-955_btl_tbvsjn_old.pac,Childish killer II (Old),Tsubaki vs Jin
+955_btl_tbvsjn_old.pac,Childish killer (Old),Tsubaki vs Jin
 956_btl_arvslc_old.pac,Weak Executioner (Old),Arakune vs Litchi
 957_btl_rlvsca_old.pac,X-matic (Old),Relius vs. Carl
 980_btl_bosshz_old.pac,Endless Despair (Old),Boss Hazama
