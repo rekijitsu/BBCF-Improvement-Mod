@@ -10,7 +10,8 @@ struct MusicTrack {
 };
 
 enum class MusicRotationMode {
-    Random,
+    Random,       // legacy (removed from the UI; folded into Shuffle) — kept so old
+                  // RotationMode=0 config values map cleanly
     Sequential,
     Shuffle
 };
@@ -60,8 +61,6 @@ public:
     void SetRotationMode(MusicRotationMode mode) { m_rotationMode = mode; }
     MusicRotationMode GetRotationMode() const { return m_rotationMode; }
 
-    void SetRepeatAll(bool val) { m_repeatAll = val; }
-    bool IsRepeatAll() const { return m_repeatAll; }
     void SetRepeatSingle(bool val) { m_repeatSingle = val; }
     bool IsRepeatSingle() const { return m_repeatSingle; }
 
@@ -146,7 +145,6 @@ private:
     bool m_initialized = false;
 
     MusicRotationMode m_rotationMode = MusicRotationMode::Sequential;
-    bool m_repeatAll = false;
     bool m_repeatSingle = false;
 
     std::vector<int> m_shuffledPlaylist;

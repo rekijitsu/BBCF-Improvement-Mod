@@ -707,21 +707,20 @@ int MusicManager::SelectNextTrack() {
     }
 
     if (m_rotationMode == MusicRotationMode::Sequential) {
-        // Play in order
+        // Play in order, wrapping back to the start at the end of the playlist —
+        // the music never stops on its own (Repeat Single covers looping one
+        // track; there's no "end of playlist" state).
         int nextIndex = currentIndex + 1;
         if (nextIndex >= (int)enabledTracks.size()) {
-            if (m_repeatAll) {
-                nextIndex = 0;
-            } else {
-                return -1;  // End of playlist
-            }
+            nextIndex = 0;
         }
         m_sequentialIndex = nextIndex + 1;
         return enabledTracks[nextIndex].id;
 
     } else {
         // Shuffle (the old "Random" mode is folded in here): play enabled tracks
-        // in a shuffled order without repeating until all have played.
+        // in a shuffled order without repeating until all have played, then
+        // reshuffle and carry on.
         if (m_shuffledPlaylist.empty() ||
             (int)m_shuffledPlaylist.size() != (int)enabledTracks.size() ||
             m_shuffleIndex >= (int)m_shuffledPlaylist.size()) {
@@ -732,8 +731,7 @@ int MusicManager::SelectNextTrack() {
                 if (m_shuffledPlaylist[i] == m_currentTrackId) {
                     m_shuffleIndex = (int)i + 1;
                     if (m_shuffleIndex >= (int)m_shuffledPlaylist.size()) {
-                        if (m_repeatAll) m_shuffleIndex = 0;
-                        else return -1;
+                        m_shuffleIndex = 0;
                     }
                     break;
                 }
@@ -744,13 +742,9 @@ int MusicManager::SelectNextTrack() {
         m_shuffleIndex++;
 
         if (m_shuffleIndex >= (int)m_shuffledPlaylist.size()) {
-            if (m_repeatAll) {
-                ShufflePlaylist();
-                m_shuffleIndex = 0;
-                nextTrackId = m_shuffledPlaylist[0];
-            } else {
-                return -1;  // End of playlist
-            }
+            ShufflePlaylist();
+            m_shuffleIndex = 0;
+            nextTrackId = m_shuffledPlaylist[0];
         }
         return nextTrackId;
     }
@@ -1394,7 +1388,7 @@ void MusicManager::PlayNextTrack() {
     // Pick the next track according to the current rotation mode.
     int nextTrackId = SelectNextTrack();
     if (nextTrackId < 0) {
-        LogMusic("MusicManager: PlayNextTrack - end of playlist, repeatAll=%d\n", m_repeatAll);
+        LogMusic("MusicManager: PlayNextTrack - no enabled tracks\n");
         return;
     }
     PlayTrack(nextTrackId);
@@ -1755,7 +1749,6 @@ void MusicManager::SavePreferences() {
     if (m_rotationMode == MusicRotationMode::Sequential) modeInt = 1;
     else if (m_rotationMode == MusicRotationMode::Shuffle) modeInt = 2;
     file << "RotationMode=" << modeInt << "\n";
-file << "RepeatAll=" << (m_repeatAll ? "1" : "0") << "\n";
 	file << "RepeatSingle=" << (m_repeatSingle ? "1" : "0") << "\n";
 
 	file.close();
@@ -1795,11 +1788,8 @@ void MusicManager::LoadPreferences() {
             } else if (key == "RotationMode") {
                 int modeInt = std::stoi(value);
                 if (modeInt == 1) m_rotationMode = MusicRotationMode::Sequential;
-                else if (modeInt == 2) m_rotationMode = MusicRotationMode::Shuffle;
-                else m_rotationMode = MusicRotationMode::Random;
-            } else if (key == "RepeatAll") {
-                m_repeatAll = (value == "1");
-} else if (key == "RepeatSingle") {
+                else m_rotationMode = MusicRotationMode::Shuffle; // 2 (and legacy 0 "Random")
+            } else if (key == "RepeatSingle") {
 				m_repeatSingle = (value == "1");
 			}
 		}
@@ -1816,7 +1806,6 @@ void MusicManager::ResetPreferences() {
     }
     m_enabled = true;
 	m_rotationMode = MusicRotationMode::Sequential;
-	m_repeatAll = false;
 	m_repeatSingle = false;
 	SavePreferences();
     LOG(2, "MusicManager: Preferences reset - all tracks enabled\n");

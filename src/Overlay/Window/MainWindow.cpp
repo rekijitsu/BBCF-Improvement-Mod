@@ -469,12 +469,6 @@ void MainWindow::DrawMusicSection() const
 	}
 
 	ImGui::HorizontalSpacing();
-	bool repeatAll = musicManager.IsRepeatAll();
-	if (ImGui::Checkbox("Repeat All", &repeatAll)) {
-		musicManager.SetRepeatAll(repeatAll);
-		musicManager.SavePreferences();
-	}
-	ImGui::SameLine();
 	bool repeatSingle = musicManager.IsRepeatSingle();
 	if (ImGui::Checkbox("Repeat Single", &repeatSingle)) {
 		musicManager.SetRepeatSingle(repeatSingle);
@@ -484,11 +478,6 @@ void MainWindow::DrawMusicSection() const
 	ImGui::HorizontalSpacing();
 	int rotationMode = static_cast<int>(musicManager.GetRotationMode());
 	ImGui::Text("Mode:");
-	ImGui::SameLine();
-	if (ImGui::RadioButton("Random", &rotationMode, 0)) {
-		musicManager.SetRotationMode(MusicRotationMode::Random);
-		musicManager.SavePreferences();
-	}
 	ImGui::SameLine();
 	if (ImGui::RadioButton("Sequential", &rotationMode, 1)) {
 		musicManager.SetRotationMode(MusicRotationMode::Sequential);
@@ -501,7 +490,7 @@ void MainWindow::DrawMusicSection() const
 	}
 
 	ImGui::HorizontalSpacing();
-	if (ImGui::Button("Play Next")) {
+	if (ImGui::Button("Play Next >|")) {
 		musicManager.PlayNextTrack();
 	}
 	ImGui::SameLine();
