@@ -66,13 +66,13 @@ void MatchState::OnMatchRematch()
 {
 	LOG(2, "MatchState::OnMatchRematch\n");
 
-	// If the jukebox deviated from the original track, our direct-XACT state in
-	// Bank[13] stalls the match summary / rematch transition (black screen). The
-	// summary needs a BGM actually present in Bank[13] (the non-deviated case has
-	// the native stage BGM there), so RELOAD the original (anchor) track rather
-	// than clearing the bank. Fires here (at the match event) before the summary
-	// loads; RestoreAnchorForSceneExit no-ops unless the mod took over BGM.
-	GetMusicManager().RestoreAnchorForSceneExit();
+	// If the jukebox deviated from the original track, restore the game's native
+	// BGM state before the match summary / rematch screen loads. The summary's
+	// sound reinitialization black-screens when the native stage bank was
+	// destroyed; PlayTrackPhysically preserves it (never Clears Bank[13]), and
+	// this strips the mod's custom banks and re-plays the originally-selected
+	// (anchor) song from the native bank. No-op unless the mod took over BGM.
+	GetMusicManager().RestoreNativeBgmForMatchEnd();
 
 	g_interfaces.pPaletteManager->OnMatchRematch(
 		g_interfaces.player1,

@@ -40,11 +40,8 @@ public:
     // 1 = all enabled, 0 = all disabled, -1 = mixed (or empty category).
     int GetCategoryEnabledState(const std::string& category) const;
 
-    void PlayTrack(int trackId, bool recordHistory = true);
+    void PlayTrack(int trackId);
     void PlayNextTrack();
-    void PlayPreviousTrack();
-    // True when there is an earlier track to step back to in the play history.
-    bool CanGoPrevious() const { return m_historyIndex > 0; }
 
     // True when actually in a match (Training / Challenge / local VS / online),
     // i.e. MatchState_Fight — the only time the jukebox drives music.
@@ -104,6 +101,15 @@ public:
     // Character Select show the original song as if the playlist never cycled.
     void RestoreAnchorForSceneExit();
 
+    // Match-end (victory / rematch screen) restore: the match summary's sound
+    // reinitialization black-screens unless the game's NATIVE stage bank is still
+    // registered in Bank[13] (destroying it with Clear is what caused the black
+    // screen). Strips the mod's custom banks (count trim only, no COM release),
+    // plays the anchor cue from the native bank, and syncs game-facing state.
+    // Safe no-op unless the mod took over BGM; also no-ops gracefully if the
+    // engine is already mid-teardown at the transition moment.
+    void RestoreNativeBgmForMatchEnd();
+
     void ResetRotationTimer() { m_framesSinceLastChange = 0; m_songPlaybackFrames = 0; }
 
     static int* s_musicSelectX;
@@ -125,7 +131,6 @@ private:
     void ShufflePlaylist();
     int SelectNextTrack();
     void DetectSceneExitAndUnload();
-    void RecordPlaybackHistory(int trackId);
     bool PlayTrackPhysically(uintptr_t modBase, int trackId, const char* bgmName, int* outDurationFrames, int presentedId);
 
     std::vector<MusicTrack> m_tracks;
@@ -147,10 +152,6 @@ private:
     std::vector<int> m_shuffledPlaylist;
     int m_shuffleIndex = 0;
 
-    // Playback history for music-player-style Previous/Next navigation.
-    std::vector<int> m_playbackHistory;
-    int m_historyIndex = -1;
-
     // Last-resort advance threshold (frames) used only if a track's length is
     // somehow unknown; every known track has a real duration (wave bank / table).
     static const int MIN_FRAMES_BETWEEN_CHANGES = 7200;
@@ -158,6 +159,7 @@ private:
     // XACT wave bank. 0 = unknown -> use the precomputed per-track table.
     int m_currentTrackDurationFrames = 0;
     int m_lastGameState = -1;      // last GameState (scene); for scene-exit detection
+    int m_lastMatchState = -1;     // last MatchState; for match-end (-> VictoryScreen) detection
     bool m_customBgmLoaded = false; // true once we've taken over BGM (needs soft-reset on exit)
     bool m_modControllingBgm = false; // true once the mod is the authority on the current track
     int m_anchorTrackId = 0;        // supported track id presented to the game (never a vs/old/sys id)
@@ -169,6 +171,22 @@ private:
     int m_origSlot0Active = 1;
     int m_origSlot0State = 0;
     bool m_audioSlot0Captured = false;
+
+    // Native Bank[13] bank counts, captured on the mod's first takeover (the
+    // game's own stage BGM: normally 1 sound bank + 1 wave bank at array index
+    // 0). PlayTrackPhysically never Clears Bank[13] (that destroyed the native
+    // stage bank -> match-summary black screen); custom banks are registered
+    // ALONGSIDE the native one, and before each registration the arrays are
+    // trimmed back to these counts (count manipulation only — no COM release,
+    // the stale objects/buffers are intentionally leaked like the scratch-slot
+    // bypass). Besides keeping the native bank alive for the match summary, the
+    // trim stops the fixed 16-entry arrays from overflowing on repeated
+    // rotations (a 17th entry would overwrite the count fields at +0x48/+0x8C
+    // and corrupt the bank). Reset whenever Bank[13] is fully cleared or the
+    // game loads a BGM natively.
+    bool m_nativeBankCountsCaptured = false;
+    int m_nativeSBCount = 1;
+    int m_nativeWBCount = 1;
 
     // "Return to Character Select?" confirm-dialog handling: restore the anchor
     // track while the dialog is up (so the exit sees a selectable track), suspend

@@ -81,17 +81,7 @@ void JukeboxWindow::DrawControls() {
 
 	ImGui::Spacing();
 
-	// Play buttons
-	// Music-player style transport controls. Previous is greyed out when there's
-	// no earlier track to step back to in the play history.
-	bool canGoPrevious = musicManager.CanGoPrevious();
-	if (!canGoPrevious) ImGui::PushStyleVar(ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.4f);
-	if (ImGui::Button("|< Previous") && canGoPrevious) {
-		musicManager.PlayPreviousTrack();
-	}
-	if (!canGoPrevious) ImGui::PopStyleVar();
-	if (ImGui::IsItemHovered() && canGoPrevious) ImGui::SetTooltip("Go back to the previously played track");
-	ImGui::SameLine();
+	// Play button — advance per the rotation mode (Sequential / Shuffle).
 	if (ImGui::Button("Next >|")) {
 		musicManager.PlayNextTrack();
 	}
