@@ -117,6 +117,16 @@ Keep in mind that the mod may partially, or completely stop working whenever a n
 Changelog
 
 ===============================
+21-07-2026 -- version 3.112
+===============================
+Features:
+- Added an in-game Jukebox (experimental): rotate the game's own BGM during matches (Training, local VS, online...) with Sequential/Shuffle rotation, true-length auto-advance, Repeat Single, per-category enable/disable, track search, click-to-play and a Play Next button. Toggle with the Jukebox hotkey (default F6).
+
+Bugfixes:
+- Fixed the match summary black-screening at the end of a local VS match when the jukebox had switched to a different track than the one selected at character select.
+- Fixed memory continuously leaking while the jukebox rotates tracks, which could freeze or crash the game after a long play session.
+
+===============================
 30-06-2026 -- version 3.111
 ===============================
 Bugfixes:
