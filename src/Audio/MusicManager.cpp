@@ -615,11 +615,6 @@ void MusicManager::UpdateMusicState() {
 		// back to the game while we play non-selectable tracks via XACT.
 		m_anchorTrackId = gameMusicId;
 
-		// The game (re)loaded a BGM natively (new match / stage / rematch), so
-		// Bank[13] holds fresh native banks. Drop the captured counts so the next
-		// takeover re-captures them from the current native state.
-		m_nativeBankCountsCaptured = false;
-
 		// Restart our playback timer and discover the track's true length from disk
 		// so rotation still advances at end-of-song.
 		m_framesSinceLastChange = 0;
@@ -1003,30 +998,11 @@ static int GetTrackDurationFramesFromPac(int trackId) {
 // Bank[13] layout (CSoundBank_XACT):
 //   +0x08: IXACTSoundBank* array (fixed 16 entries), count at +0x48
 //   +0x4C: wave-bank handle array (fixed 16 entries), count at +0x8C
-// The game's native stage banks sit at indices [0, nativeCount). The mod appends
-// its custom banks after them. Trimming = restore the native counts and null the
-// stale slots. NO COM release: releasing/re-registering banks caused crashes
-// (the old "Previous" regression), and the stale XACT objects are safe to leak
-// for the session — their wave data lives in the intentionally-leaked scratch
-// slot buffer (see the slot-0x3E bypass in PlayTrackPhysically STEP 2).
-static void TrimBank13ToNative(void* bank13, int nativeSBCount, int nativeWBCount) {
-	char* b = (char*)bank13;
-	int sbc = *(int*)(b + 0x48);
-	if (sbc > nativeSBCount) {
-		for (int i = nativeSBCount; i < sbc && i < 16; i++) {
-			*(void**)(b + 0x08 + i * 4) = nullptr;
-		}
-		*(int*)(b + 0x48) = nativeSBCount;
-	}
-	int wbc = *(int*)(b + 0x8C);
-	if (wbc > nativeWBCount) {
-		for (int i = nativeWBCount; i < wbc && i < 16; i++) {
-			*(void**)(b + 0x4C + i * 4) = nullptr;
-		}
-		*(int*)(b + 0x8C) = nativeWBCount;
-	}
-}
-
+//   +0x90: cue array pointer (0x98-byte CSoundCue_XACT elements)
+// InitCues (RVA 0x0510D0) = Clear (vtable[0x08], RVA 0x051890) + fresh cue
+// array allocation; Clear releases all SBs (vtable[0x18]) and WB handles
+// (engine refcount table) and zeroes the counts. So after InitCues the bank
+// is empty and ready for exactly one custom SB/WB pair (registered below).
 bool MusicManager::PlayTrackPhysically(uintptr_t modBase, int trackId, const char* bgmName, int* outDurationFrames, int presentedId) {
 	if (outDurationFrames) *outDurationFrames = 0;
 	uintptr_t audioMgrAddr = modBase + AUDIO_MGR_RVA;
@@ -1068,29 +1044,21 @@ bool MusicManager::PlayTrackPhysically(uintptr_t modBase, int trackId, const cha
 				stopWrapper(bank13, &stopIndex);
 				LogMusic("MusicManager: Stopped BGM source[0] via Bank[13]->vtable[0x1C]\n");
 
-				// PRESERVE the game's native stage bank: do NOT Clear Bank[13]. Clear
-				// destroys the native bank, and a destroyed native bank is exactly
-				// what makes the match-summary / rematch-screen reinitialization
-				// black-screen (the summary reinit only succeeds with the native
-				// stage bank still registered). The custom bank is registered in a
-				// second slot ALONGSIDE the native one (below).
+				// Re-init the cue array. Verified by disassembly: InitCues (RVA
+				// 0x0510D0) calls CSoundBank_XACT::vtable[0x08] = Clear (RVA
+				// 0x051890) FIRST: it destroys the playing cues, releases every
+				// registered sound bank (SB objects via their vtable[0x18], WB
+				// handles via the engine's refcount table) and zeroes the bank
+				// arrays, THEN allocates the fresh cue array the registration
+				// functions need. So this one call resets Bank[13] to empty the
+				// same way the game's own scene transitions do (no bank objects
+				// leak across rotations).
 				//
-				// Capture the native bank counts on first takeover, then trim any
-				// custom banks left over from previous rotations so the arrays stay
-				// at native + (at most) one custom — see TrimBank13ToNative.
-				if (!m_nativeBankCountsCaptured) {
-					int sbc = *(int*)((char*)bank13 + 0x48);
-					int wbc = *(int*)((char*)bank13 + 0x8C);
-					if (sbc < 0 || sbc > 16) sbc = 1;
-					if (wbc < 0 || wbc > 16) wbc = 1;
-					m_nativeSBCount = sbc;
-					m_nativeWBCount = wbc;
-					m_nativeBankCountsCaptured = true;
-					LogMusic("MusicManager: Captured native Bank[13] counts (SB=%d, WB=%d)\n", sbc, wbc);
-				}
-				TrimBank13ToNative(bank13, m_nativeSBCount, m_nativeWBCount);
-
-				// Re-init the cue array so the registration functions can execute.
+				// Releasing the previous custom wave bank here is also what makes
+				// it safe for RegisterBgm (STEP 2) to free the previous slot
+				// buffer: that wave bank was the buffer's only remaining user,
+				// so recycling it ends the ~3 MB-per-rotation buffer leak that
+				// degraded long sessions (heap growth -> freezes/crashes).
 				typedef void (__thiscall *BankInitCuesFuncType)(void* bank, int cueCount);
 				BankInitCuesFuncType initCues = (BankInitCuesFuncType)(modBase + 0x0510D0); // Method 1
 				initCues(bank13, 1);
@@ -1100,11 +1068,12 @@ bool MusicManager::PlayTrackPhysically(uintptr_t modBase, int trackId, const cha
 				if (cues_ptr) {
 					memset((char*)cues_ptr + 4, 0, 0x98 - 4);
 				}
-				LogMusic("MusicManager: Re-initialized Bank[13] cues (native bank preserved)\n");
+				LogMusic("MusicManager: Cleared Bank[13] and re-initialized cues\n");
 			}
 		}
 
-		// Find and clear any playController slots referencing the current BGM soundObj
+		// Find and clear any playController slots referencing the current BGM
+		// soundObj — must happen BEFORE RegisterBgm (STEP 2) frees that buffer.
 		void* currentBgmObj = nullptr;
 		__try {
 			currentBgmObj = *(void**)(soundSlotMgrAddr + BGM_SLOT_INDEX * 8);
@@ -1135,17 +1104,12 @@ bool MusicManager::PlayTrackPhysically(uintptr_t modBase, int trackId, const cha
 				LogMusic("MusicManager: Exception while clearing playController slots\n");
 			}
 
-			// Bypass RegisterBgm's internal free() by nullifying the slot pointer in soundSlotMgr.
-			// This leaves the old BGM soundObj memory allocated/valid, so any active audio threads 
-			// still updating/stopping it do not crash on invalid memory access.
-			__try {
-				*(void**)(soundSlotMgrAddr + BGM_SLOT_INDEX * 8) = nullptr;
-				*(int*)(soundSlotMgrAddr + BGM_SLOT_INDEX * 8 + 4) = 0;
-				LogMusic("MusicManager: Bypassed RegisterBgm free() by nullifying slot 0x%X\n", BGM_SLOT_INDEX);
-			}
-			__except (EXCEPTION_EXECUTE_HANDLER) {
-				LogMusic("MusicManager: Failed to nullify slot 0x%X in soundSlotMgr\n", BGM_SLOT_INDEX);
-			}
+			// NOTE: the slot is deliberately LEFT in place. RegisterBgm (STEP 2)
+			// frees the previous buffer itself — safe now, because the Clear
+			// above released the wave bank that referenced it (this is the same
+			// stop -> release -> free ordering the game's native scene cleanup
+			// uses). The old "null the slot to bypass the free" trick leaked
+			// ~3 MB per rotation.
 		}
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER) {
@@ -1527,9 +1491,6 @@ void MusicManager::UnloadCustomBgm() {
     // Reset internal rotation state so re-entering the match re-arms cleanly.
     m_customBgmLoaded = false;
     m_modControllingBgm = false;
-    // Bank[13] was fully cleared; the game rebuilds it for the next scene, so
-    // the native bank counts get re-captured on the next takeover.
-    m_nativeBankCountsCaptured = false;
     m_currentTrackId = m_anchorTrackId;
     m_currentTrack = nullptr;
     for (const auto& t : m_tracks) {
@@ -1585,86 +1546,32 @@ void MusicManager::RestoreNativeBgmForMatchEnd() {
     // is left untouched so match end behaves exactly like vanilla.
     if (!m_customBgmLoaded && !m_modControllingBgm) return;
 
+    // Backup cleanup for match-end flows that reach the victory screen WITHOUT
+    // the MatchState -> VictoryScreen transition cleanup in UpdateMusicState
+    // (that early cleanup is the primary fix for the match-summary black
+    // screen). Runs the same proven cleanup as the Character Select exit:
+    // Clear Bank[13] while the engine is still reachable (its bank ops no-op
+    // if the engine is already mid-teardown), restore audioMgr slot 0 to its
+    // native state, and present the selectable anchor everywhere.
+    //
+    // The scratch slot is orphaned FIRST so the scene-exit cleanup can't free
+    // the wave buffer out from under a live XACT wave bank (in-memory wave
+    // banks reference their data; freeing it underneath a live bank is what
+    // killed the audio clock and black-screened the summary). One buffer is
+    // leaked per such scene exit — acceptable; rotations recycle theirs.
     HMODULE hMod = GetModuleHandleA("BBCF.exe");
     if (!hMod) return;
-    uintptr_t modBase = (uintptr_t)hMod;
-    uintptr_t soundEngineAddr = modBase + SOUND_ENGINE_RVA;
-    uintptr_t audioMgrAddr = modBase + AUDIO_MGR_RVA;
-    uintptr_t soundSlotMgrAddr = modBase + SOUND_SLOT_MGR_RVA;
-
-    const char* anchorName = GetBgmFilename(m_anchorTrackId);
-
+    uintptr_t soundSlotMgrAddr = (uintptr_t)hMod + SOUND_SLOT_MGR_RVA;
     __try {
-        // Orphan the scratch-slot buffer BEFORE the scene-exit cleanup runs:
-        // Bank[13]'s XACT wave bank still references that buffer (in-memory wave
-        // banks don't copy their data). If the cleanup frees it, the audio
-        // consumer thread dereferences freed memory and dies, the game's
-        // load/clock queue never drains, and the main thread waits on it
-        // forever -> black screen (this is THE match-end failure). Nulling the
-        // slot makes the cleanup skip it (the same bypass used mid-rotation),
-        // leaking the buffer but keeping the wave data valid.
         *(void**)(soundSlotMgrAddr + 0x3E * 8) = nullptr;
         *(int*)(soundSlotMgrAddr + 0x3E * 8 + 4) = 0;
         LogMusic("MusicManager: Match end: orphaned scratch slot 0x3E buffer (protects XACT wave bank)\n");
-
-        void** bankArray = *(void***)(soundEngineAddr + 0x04);
-        int bankCount = *(int*)(soundEngineAddr + 0x10);
-        void* bank13 = (bankArray && bankCount > 13) ? bankArray[13] : nullptr;
-        if (bank13 && anchorName) {
-            // Stop the currently-playing custom cue.
-            int stopIndex = 0;
-            typedef void (__thiscall *BankStopWrapperType)(void* bank, int* idx);
-            ((BankStopWrapperType)(modBase + BANK_STOP_RVA))(bank13, &stopIndex);
-
-            // Strip the mod's custom banks (count-only trim), leaving ONLY the
-            // game's native stage banks in Bank[13] — the state the match-summary
-            // reinitialization tolerates (it black-screens when the native bank
-            // was destroyed, which Clear used to do).
-            if (m_nativeBankCountsCaptured) {
-                TrimBank13ToNative(bank13, m_nativeSBCount, m_nativeWBCount);
-            }
-
-            // Re-init the cue array (the old custom cue wrapper is gone), then
-            // re-load the originally-selected song: the anchor cue is played from
-            // the game's OWN native sound bank, so no foreign XACT state remains.
-            typedef void (__thiscall *BankInitCuesFuncType)(void* bank, int cueCount);
-            ((BankInitCuesFuncType)(modBase + 0x0510D0))(bank13, 1);
-            void* cues_ptr = *(void**)((char*)bank13 + 0x90);
-            if (cues_ptr) {
-                memset((char*)cues_ptr + 4, 0, 0x98 - 4);
-            }
-
-            int dummyParams[4] = { 0, 0, 0, 0 };
-            int playResult = -1;
-            typedef void (__thiscall *BankPlayFuncType)(void* bank, int* resultOut, const char* cueName, void* param3);
-            ((BankPlayFuncType)(modBase + 0x0515B0))(bank13, &playResult, anchorName, dummyParams);
-            LogMusic("MusicManager: Match end: trimmed custom banks, played anchor \"%s\" from native bank (result=%d)\n",
-                anchorName, playResult);
-        } else {
-            // Engine already mid-teardown for the transition (the common local-VS
-            // case: the bank array reads unavailable at this exact moment). The
-            // game's summary reinit handles Bank[13] itself — and succeeds because
-            // we preserved the native stage bank all through the match (no Clear).
-            LogMusic("MusicManager: Match end: Bank[13] unavailable (engine mid-transition); native bank was preserved during match\n");
-        }
-
-        // Sync game-facing state to the selectable anchor.
-        *(int*)(audioMgrAddr + 0x1690) = m_anchorTrackId;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
-        LogMusic("MusicManager: Exception during RestoreNativeBgmForMatchEnd (continuing)\n");
+        LogMusic("MusicManager: Exception orphaning scratch slot (continuing)\n");
     }
 
-    if (s_musicSelectX) *s_musicSelectX = m_anchorTrackId;
-    if (s_musicSelectY) *s_musicSelectY = 0;
-
-    // The mod is no longer the BGM authority for the summary / rematch screen.
-    m_customBgmLoaded = false;
-    m_modControllingBgm = false;
-    m_currentTrackId = m_anchorTrackId;
-    m_currentTrackDurationFrames = 0;
-    m_framesSinceLastChange = 0;
-    m_songPlaybackFrames = 0;
+    ClearBgmForSceneExit();
 }
 
 void MusicManager::ClearBgmForSceneExit() {
@@ -1717,9 +1624,6 @@ void MusicManager::ClearBgmForSceneExit() {
 
     m_customBgmLoaded = false;
     m_modControllingBgm = false;
-    // Bank[13] was fully cleared; the game rebuilds it for the next scene, so
-    // the native bank counts get re-captured on the next takeover.
-    m_nativeBankCountsCaptured = false;
     m_currentTrackId = m_anchorTrackId;
     m_currentTrackDurationFrames = 0;
     m_framesSinceLastChange = 0;

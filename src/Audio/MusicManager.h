@@ -100,13 +100,11 @@ public:
     // Character Select show the original song as if the playlist never cycled.
     void RestoreAnchorForSceneExit();
 
-    // Match-end (victory / rematch screen) restore: the match summary's sound
-    // reinitialization black-screens unless the game's NATIVE stage bank is still
-    // registered in Bank[13] (destroying it with Clear is what caused the black
-    // screen). Strips the mod's custom banks (count trim only, no COM release),
-    // plays the anchor cue from the native bank, and syncs game-facing state.
-    // Safe no-op unless the mod took over BGM; also no-ops gracefully if the
-    // engine is already mid-teardown at the transition moment.
+    // Backup BGM cleanup for the match-end -> victory-screen transition, for
+    // flows that don't hit the primary cleanup (UpdateMusicState clearing on
+    // MatchState -> VictoryScreen). Same proven cleanup as the Character
+    // Select exit (ClearBgmForSceneExit), with the scratch-slot buffer
+    // orphaned first. No-op unless the mod took over BGM.
     void RestoreNativeBgmForMatchEnd();
 
     void ResetRotationTimer() { m_framesSinceLastChange = 0; m_songPlaybackFrames = 0; }
@@ -169,22 +167,6 @@ private:
     int m_origSlot0Active = 1;
     int m_origSlot0State = 0;
     bool m_audioSlot0Captured = false;
-
-    // Native Bank[13] bank counts, captured on the mod's first takeover (the
-    // game's own stage BGM: normally 1 sound bank + 1 wave bank at array index
-    // 0). PlayTrackPhysically never Clears Bank[13] (that destroyed the native
-    // stage bank -> match-summary black screen); custom banks are registered
-    // ALONGSIDE the native one, and before each registration the arrays are
-    // trimmed back to these counts (count manipulation only — no COM release,
-    // the stale objects/buffers are intentionally leaked like the scratch-slot
-    // bypass). Besides keeping the native bank alive for the match summary, the
-    // trim stops the fixed 16-entry arrays from overflowing on repeated
-    // rotations (a 17th entry would overwrite the count fields at +0x48/+0x8C
-    // and corrupt the bank). Reset whenever Bank[13] is fully cleared or the
-    // game loads a BGM natively.
-    bool m_nativeBankCountsCaptured = false;
-    int m_nativeSBCount = 1;
-    int m_nativeWBCount = 1;
 
     // "Return to Character Select?" confirm-dialog handling: restore the anchor
     // track while the dialog is up (so the exit sees a selectable track), suspend

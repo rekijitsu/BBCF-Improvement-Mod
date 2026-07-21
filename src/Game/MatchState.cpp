@@ -66,12 +66,13 @@ void MatchState::OnMatchRematch()
 {
 	LOG(2, "MatchState::OnMatchRematch\n");
 
-	// If the jukebox deviated from the original track, restore the game's native
-	// BGM state before the match summary / rematch screen loads. The summary's
-	// sound reinitialization black-screens when the native stage bank was
-	// destroyed; PlayTrackPhysically preserves it (never Clears Bank[13]), and
-	// this strips the mod's custom banks and re-plays the originally-selected
-	// (anchor) song from the native bank. No-op unless the mod took over BGM.
+	// If the jukebox deviated from the original track, clean up the mod's BGM
+	// state for the match summary / rematch screen. The primary cleanup runs
+	// earlier (UpdateMusicState clears on MatchState -> VictoryScreen, while
+	// the audio engine is still alive); this is the backup for flows that get
+	// here without it. By this point the engine is usually already mid-
+	// teardown, so the bank ops no-op and only the game-facing state restore
+	// applies. No-op unless the mod took over BGM.
 	GetMusicManager().RestoreNativeBgmForMatchEnd();
 
 	g_interfaces.pPaletteManager->OnMatchRematch(

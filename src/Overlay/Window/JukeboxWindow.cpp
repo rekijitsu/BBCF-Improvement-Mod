@@ -34,7 +34,7 @@ void JukeboxWindow::DrawControls() {
 
 	ImGui::TextColored(ImVec4(1, 1, 0, 1), "Jukebox");
 	ImGui::SameLine();
-	ImGui::TextDisabled("(Music Rotation)");
+	ImGui::TextDisabled("(EXPERIMENTAL)");
 
 	ImGui::Spacing();
 
