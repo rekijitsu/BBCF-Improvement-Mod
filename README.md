@@ -17,7 +17,8 @@ Join the [BB Improvement Mod Discord Server](https://discord.gg/j2mCX9s) to disc
 - Adds wakeup action thru training dummy slots
 - Adds gap action thru training dummy slots
 - Adds local replay file loading
-- Adds an in-game **Jukebox** that rotates the game's own BGM during matches (Training, local VS, online, …): sequential or shuffle rotation with per-track true-length auto-advance (tracks play to the end, and the music never stops on its own), Repeat Single, per-category enable/disable, track search, click-to-play, a `Play Next >|` button, and a live song timer — toggle with the Jukebox hotkey (default `F6`)
+- Adds an in-game **Jukebox** to rotate BGM during matches with auto-advance, track search, and live playback controls (default hotkey `F6`).
+- Supports **Custom BGM** by automatically converting `.mp3` files in `data/Sound/BGM/custom/` into native tracks for Jukebox rotation.
 - more experimental features
 
 
@@ -35,6 +36,13 @@ Download dinput8.dll, settings.ini and optionally palettes.ini from the latest r
 BBCF Improvement Mod is coded using Visual Studio 2019 (toolset v142). <br>
 To compile, you should only need to load the sln file and compile as-is. No changes should be needed to the solution or source.<br>
 Copy the compiled binary, settings.ini, and palettes.ini files from the bin/ folder into the game's root folder.
+
+### Custom Music (Custom BGM)
+You can play your own custom tracks in-game via the Jukebox:
+1. Place `.mp3` files into the `data/Sound/BGM/custom/` directory inside your BlazBlue Centralfiction folder (create the `custom/` directory if it does not exist).
+2. Launch the game. On startup, the mod automatically transcodes any new MP3 files into game-native XACT `.pac` BGM files. There may be a small wait at title if there's a lot to convert, and it's 1-time only.
+3. Open the Jukebox (default hotkey `F6`). Custom tracks will appear under the **`custom`** category (colored cyan) and participate in match music rotation, shuffling, search, and manual selection.
+4. Converted `.pac` files are cached in `data/Sound/BGM/`, so transcoding only occurs once per new track.
 
 
 ### FrameHistory: 

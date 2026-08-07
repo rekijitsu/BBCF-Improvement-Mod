@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <chrono>
+#include <utility>
 
 struct MusicTrack {
     int id;
@@ -72,6 +73,13 @@ public:
     static const char* GetBgmFilename(int trackId);
     static int GetTrackDuration(int trackId);
 
+    // Custom track filename lookup (dynamic, parallels the static UNKNOWN_TRACK_FILES).
+    // Populated once at startup by DiscoverCustomTracks(). Each entry:
+    // {trackId, bgmFilename} e.g. {10000, "c10000_my_song"} (no .pac extension).
+    // Custom track IDs are >= 10000 so they can never collide with a native ID
+    // and can never be written into the game's own BGM-id fields.
+    static std::vector<std::pair<int, std::string>> s_customTrackFiles;
+
     int GetSongPlaybackFrames() const { return m_songPlaybackFrames; }
     std::string GetSongTimeString() const;
 
@@ -125,6 +133,7 @@ private:
     ~MusicManager() = default;
 
     void BuildTrackList();
+    void DiscoverCustomTracks();
     void ChangeMusicIfNeeded();
     void UpdateMusicState();
     void ShufflePlaylist();
@@ -143,6 +152,7 @@ private:
 
     bool m_enabled = false;
     bool m_initialized = false;
+    bool m_customTracksDiscovered = false; // one-shot guard for DiscoverCustomTracks
 
     MusicRotationMode m_rotationMode = MusicRotationMode::Sequential;
     bool m_repeatSingle = false;
