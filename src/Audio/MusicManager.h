@@ -179,6 +179,12 @@ private:
     int m_dialogClosedTimer = 0;
     bool m_dialogSeenInRender = false; // set each render frame if the confirm dialog is visible
     bool CheckConfirmDialogUp();
+
+    // Hysteresis for the dialog signal (render phase): overlays such as the
+    // versus/online round-countdown can flash the scanned UI slots for a frame
+    // or two; only a signal that persists for a short run is exposed as "seen".
+    bool m_dialogSeenRunActive = false;
+    std::chrono::steady_clock::time_point m_dialogSeenRunStart;
 public:
     // Called from the render path (the dialog's message id is only present in the
     // render-phase UI buffer). Updates m_dialogSeenInRender for Update() to act on.

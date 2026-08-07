@@ -621,16 +621,18 @@ void MusicManager::PollDialogRenderPhase() {
     };
 
     bool seen = false;
+    bool sig1 = false, sig2 = false; // diagnostic: which signal identified it
+    int sig2Slot = -1;                 // diagnostic: which element slot matched
     __try {
         // Signal 1: the dialog's message id (e.g. "e144") at this slot. It's
         // transient, so also check the button-element colors below.
         const char* slot = (const char*)(base + 0x613900);
         if (isMsgId(slot)) {
-            seen = true;
+            sig1 = true;
         } else {
             const char* region = (const char*)(base + 0x6138E0);
             for (int off = 0; off < 0x40; off++) {
-                if (isMsgId(region + off)) { seen = true; break; }
+                if (isMsgId(region + off)) { sig1 = true; break; }
             }
         }
 
@@ -638,27 +640,117 @@ void MusicManager::PollDialogRenderPhase() {
         // carry the colors 0x4effffff / 0x2effffff (highlighted / non-highlighted).
         // These specific colors appear only while this dialog is up (the pause
         // menu uses different element colors), so they identify the dialog itself.
-        if (!seen) {
-            for (uintptr_t off = 0x613884; off <= 0x61398c; off += 0x18) {
+        if (!sig1) {
+            int slotIndex = 0;
+            for (uintptr_t off = 0x613884; off <= 0x61398c; off += 0x18, slotIndex++) {
                 unsigned int color = *(const unsigned int*)(base + off);
                 if (color == 0x4effffffu || color == 0x2effffffu) {
-                    seen = true;
+                    sig2 = true;
+                    sig2Slot = slotIndex;
                     break;
                 }
             }
         }
+        seen = sig1 || sig2;
     }
     __except (EXCEPTION_EXECUTE_HANDLER) {
         seen = false;
     }
+
+    // The "return to character select?" confirm dialog lives in the pause menu,
+    // which is only reachable during an active fight (MatchState_Fight). It can
+    // NOT appear during the pre-fight intro (MatchState_NotStarted), the
+    // round-sign / countdown (MatchState_RebelActionRoundSign) or match
+    // initialization (MatchState_Initialization). However, the countdown overlay
+    // briefly paints one of the UI slots scanned by Signal 2 with the dialog's
+    // button colors, producing a single-frame false positive while MatchState==2
+    // (observed in DEBUG.txt). That false latch then runs the close-debounce
+    // window which blanks the jukebox display. Suppressing the detection in the
+    // pre-fight states removes the false positive entirely and cannot affect the
+    // real pause-menu dialog. If MatchState is unreadable, fall back to accepting
+    // the detection so a transient read failure can never break the real dialog.
+    if (seen) {
+        int matchState = -1;
+        __try {
+            if (g_gameVals.pMatchState) matchState = *g_gameVals.pMatchState;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER) {
+            matchState = -1;
+        }
+        if (matchState == MatchState_NotStarted ||
+            matchState == MatchState_RebelActionRoundSign ||
+            matchState == MatchState_Initialization) {
+            seen = false;
+        }
+    }
+
+    // Hysteresis: expose the detection only after the (gated) signal has been
+    // continuously present for a short run. The real dialog stays on screen
+    // until the user answers it, so a 50 ms latch delay is imperceptible and
+    // can't make a real dialog miss its anchor restore in time; but transient
+    // single-frame UI flashes (like the countdown overlay hit above) never
+    // latch the "dialog is up" state at all.
+    const bool gatedSeen = seen;
+    {
+        auto now = std::chrono::steady_clock::now();
+        if (seen) {
+            if (!m_dialogSeenRunActive) {
+                m_dialogSeenRunActive = true;
+                m_dialogSeenRunStart = now;
+            }
+            seen = (now - m_dialogSeenRunStart) >= std::chrono::milliseconds(50);
+        } else {
+            m_dialogSeenRunActive = false;
+        }
+    }
+
     m_dialogSeenInRender = seen;
 
+    // Diagnostic: trace the dialog state machine (which signal fired, the
+    // gated/exposed state, and the latch/debounce transitions). Kept because
+    // this detector is heuristic and this area has proven fragile.
+    {
+        static bool s_lastGated = false;
+        static bool s_lastSeen = false;
+        static bool s_lastActive = false;
+        static bool s_lastDebounce = false;
+        bool debounce = (m_dialogClosedTimer > 0);
+        if (gatedSeen != s_lastGated || seen != s_lastSeen ||
+            m_confirmDialogActive != s_lastActive || debounce != s_lastDebounce) {
+            int gs = -1, ms = -1;
+            __try {
+                if (g_gameVals.pGameState) gs = *g_gameVals.pGameState;
+                if (g_gameVals.pMatchState) ms = *g_gameVals.pMatchState;
+            }
+            __except (EXCEPTION_EXECUTE_HANDLER) {}
+            LogMusic("MusicManager: DialogState gated=%d seen=%d (sig1=%d sig2=%d slot=%d) active=%d debounce=%d(timer=%d) GameState=%d MatchState=%d track=%d\n",
+                gatedSeen ? 1 : 0, seen ? 1 : 0, sig1 ? 1 : 0, sig2 ? 1 : 0, sig2Slot,
+                m_confirmDialogActive ? 1 : 0, debounce ? 1 : 0, m_dialogClosedTimer,
+                gs, ms, m_currentTrackId);
+            s_lastGated = gatedSeen;
+            s_lastSeen = seen;
+            s_lastActive = m_confirmDialogActive;
+            s_lastDebounce = debounce;
+        }
+    }
+
     // Update wall-clock timers in the render loop so they keep ticking even when paused.
-    if (!ShouldShowPlayback()) {
+    //
+    // Re-arm the wall-clock anchor ONLY while truly outside the match scene
+    // (menus / character select / loading), so the next match starts clean. Do
+    // NOT re-arm during the in-match post-dialog debounce (ShouldShowPlayback()
+    // false while m_dialogClosedTimer > 0): that window is also entered when the
+    // confirm-dialog detector false-positives on the versus/online intro /
+    // round-countdown overlay, and re-arming there desyncs the timer from the
+    // BGM that is still playing (the jukebox UI resets to 0:00 and rotation
+    // fires late by the whole intro+countdown duration). While in the match,
+    // m_songStartTime is owned by track detection (UpdateMusicState) and by
+    // PlayTrackPhysically; leaving it untouched here keeps it correct.
+    if (!IsInMatch()) {
         m_songStartTime = std::chrono::steady_clock::now();
         m_songPlaybackFrames = 0;
         m_framesSinceLastChange = 0;
-    } else if (m_currentTrackId >= 0 && IsInMatch() && !m_confirmDialogActive && !(m_gameMusicId >= 600 && m_gameMusicId <= 611)) {
+    } else if (m_currentTrackId >= 0 && !m_confirmDialogActive && !(m_gameMusicId >= 600 && m_gameMusicId <= 611)) {
         auto now = std::chrono::steady_clock::now();
         double elapsed = std::chrono::duration<double>(now - m_songStartTime).count();
         int elapsedFrames = (int)(elapsed * 60.0);
