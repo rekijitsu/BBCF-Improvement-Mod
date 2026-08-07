@@ -180,6 +180,7 @@ static const ImVec4 COLOR_SYS  = ImVec4(1.0f, 1.0f, 0.4f, 1.0f);   // Yellow - S
 static const ImVec4 COLOR_OLD  = ImVec4(0.6f, 0.6f, 0.6f, 1.0f);   // Gray - Legacy/old versions
 static const ImVec4 COLOR_STORY = ImVec4(0.4f, 1.0f, 0.6f, 1.0f);  // Light Green - Story themes
 static const ImVec4 COLOR_ASTRAL = ImVec4(1.0f, 0.6f, 0.2f, 1.0f); // Orange - Astral Finish themes
+static const ImVec4 COLOR_CUSTOM = ImVec4(0.2f, 0.8f, 1.0f, 1.0f); // Cyan/Teal - Custom user tracks
 
 static ImVec4 GetCategoryColor(const std::string& category) {
 	if (category == "btl") return COLOR_BTL;
@@ -189,6 +190,7 @@ static ImVec4 GetCategoryColor(const std::string& category) {
 	if (category == "old") return COLOR_OLD;
 	if (category == "story") return COLOR_STORY;
 	if (category == "astral") return COLOR_ASTRAL;
+	if (category == "custom") return COLOR_CUSTOM;
 	return ImVec4(1, 1, 1, 1);
 }
 

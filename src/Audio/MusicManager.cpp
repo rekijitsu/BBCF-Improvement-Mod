@@ -1,4 +1,5 @@
 #include "MusicManager.h"
+#include "CustomMusicConverter.h"
 #include "Core/logger.h"
 #include "Core/utils.h"
 #include "Game/gamestates.h"
@@ -36,6 +37,7 @@ static void LogMusic(const char* fmt, ...) {
 // Static member initialization
 int* MusicManager::s_musicSelectX = nullptr;
 int* MusicManager::s_musicSelectY = nullptr;
+std::vector<std::pair<int, std::string>> MusicManager::s_customTrackFiles;
 
 // Audio engine constants (from reverse engineering BBCF.exe)
 static constexpr uintptr_t AUDIO_MGR_RVA = 0x008903B0;
@@ -162,6 +164,13 @@ const char* MusicManager::GetBgmFilename(int trackId) {
 	for (const auto& entry : UNKNOWN_TRACK_FILES) {
 		if (entry.first == trackId) {
 			return entry.second;
+		}
+	}
+	// Custom tracks (IDs >= 10000, discovered at startup). Returning a non-null
+	// filename here is what marks an id as "valid" everywhere it is checked.
+	for (const auto& entry : s_customTrackFiles) {
+		if (entry.first == trackId) {
+			return entry.second.c_str();
 		}
 	}
 	return nullptr;
@@ -429,6 +438,46 @@ void MusicManager::BuildTrackList() {
     }
 }
 
+// Discover and register custom tracks. Runs the MP3 -> PAC conversion pipeline
+// (idempotent: cached .pac files are reused) and appends each converted track to
+// the track list under the "custom" category, which the Jukebox renders below
+// "astral". Called once from Initialize(), after LoadPreferences() so the user's
+// saved enabled/disabled state for previously-seen custom track IDs applies.
+void MusicManager::DiscoverCustomTracks() {
+    if (m_customTracksDiscovered) return;
+    m_customTracksDiscovered = true;
+
+    LogMusic("MusicManager: Discovering custom tracks...\n");
+
+    std::vector<CustomTrackInfo> customTracks = ConvertCustomMusicOnStartup();
+
+    if (customTracks.empty()) {
+        LogMusic("MusicManager: No custom tracks found\n");
+        return;
+    }
+
+    LogMusic("MusicManager: Registering %d custom track(s)\n", (int)customTracks.size());
+
+    for (const auto& ct : customTracks) {
+        // Add to the track list with "custom" category (appears below "astral")
+        m_tracks.push_back({ ct.id, ct.displayName, "custom" });
+
+        // Register in the custom filename lookup table
+        s_customTrackFiles.push_back({ ct.id, ct.pacFilename });
+
+        // Enable by default unless the user's saved preferences already have an
+        // entry for this id (LoadPreferences ran first).
+        if (m_trackEnabled.find(ct.id) == m_trackEnabled.end()) {
+            m_trackEnabled[ct.id] = true;
+        }
+
+        LogMusic("MusicManager: Registered custom track ID=%d name=\"%s\" pac=\"%s\"\n",
+            ct.id, ct.displayName.c_str(), ct.pacFilename.c_str());
+    }
+
+    LogMusic("MusicManager: Total tracks after custom: %d\n", (int)m_tracks.size());
+}
+
 void MusicManager::Initialize() {
     if (m_initialized) return;
 
@@ -457,6 +506,12 @@ void MusicManager::Initialize() {
     }
 
     LoadPreferences();
+
+    // Discover and register custom tracks (after preferences are loaded so saved
+    // enabled/disabled states for previously-seen custom track IDs apply). This
+    // may transcode MP3s on first run, which can take a little while.
+    DiscoverCustomTracks();
+
     m_initialized = true;
     LogMusic("MusicManager initialized with %d tracks, enabled=%d\n", (int)m_tracks.size(), m_enabled);
 }
@@ -1318,6 +1373,20 @@ bool MusicManager::PlayTrackPhysically(uintptr_t modBase, int trackId, const cha
 				if (cues_ptr) {
 					memset((char*)cues_ptr + 4, 0, 0x98 - 4);
 				}
+
+				// CUSTOM TRACKS ONLY: belt-and-suspenders reset of the registered
+				// sound/wave bank count fields and slot arrays so the registration
+				// below lands deterministically in slot 0. InitCues already zeroes
+				// these (see above), so for native tracks this is a no-op — it is
+				// deliberately gated to custom tracks (id >= 10000) to guarantee the
+				// native rotation path is byte-for-byte unchanged.
+				if (trackId >= 10000) {
+					*(int*)((char*)bank13 + 0x48) = 0;   // sound bank count
+					*(int*)((char*)bank13 + 0x8C) = 0;   // wave bank count
+					memset((char*)bank13 + 0x08, 0, 16 * sizeof(void*)); // SB pointer array
+					memset((char*)bank13 + 0x4C, 0, 16 * sizeof(void*)); // WB handle array
+				}
+
 				LogMusic("MusicManager: Cleared Bank[13] and re-initialized cues\n");
 			}
 		}
@@ -1502,8 +1571,14 @@ bool MusicManager::PlayTrackPhysically(uintptr_t modBase, int trackId, const cha
 				int playResult = -1;
 				typedef void (__thiscall *BankPlayFuncType)(void* bank, int* resultOut, const char* cueName, void* param3);
 				BankPlayFuncType playCue = (BankPlayFuncType)(modBase + 0x0515B0);
-				playCue(bank13, &playResult, bgmName, dummyParams);
-				LogMusic("MusicManager: Direct CSoundBank_XACT::Play(\"%s\") returned %d\n", bgmName, playResult);
+				// Custom tracks (id >= 10000) are built from the native 000_btl_rg
+				// sound-bank template, whose single cue is literally named
+				// "000_btl_rg" (see CustomMusicConverter::BuildSoundBank). The wave
+				// data is the custom song, but the cue we must request is the
+				// template's. Native tracks play by their own filename as before.
+				const char* playCueName = (trackId >= 10000) ? "000_btl_rg" : bgmName;
+				playCue(bank13, &playResult, playCueName, dummyParams);
+				LogMusic("MusicManager: Direct CSoundBank_XACT::Play(\"%s\") returned %d\n", playCueName, playResult);
 			}
 		}
 	}
