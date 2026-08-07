@@ -462,9 +462,30 @@ void MusicManager::Initialize() {
 }
 
 void MusicManager::OnMatchInit() {
-    LogMusic("MusicManager: OnMatchInit - resetting BGM state\n");
+    LogMusic("MusicManager: OnMatchInit - resetting BGM state (current=%d anchor=%d controlling=%d loaded=%d)\n",
+        m_currentTrackId, m_anchorTrackId, m_modControllingBgm ? 1 : 0, m_customBgmLoaded ? 1 : 0);
     if (m_customBgmLoaded || m_modControllingBgm) {
         ClearBgmForSceneExit();
+    }
+
+    // A new match always starts with the game natively playing the track chosen at
+    // Character Select (the anchor). Re-sync the jukebox's bookkeeping to it so a
+    // stale "last played" playlist track from a previous mode (e.g. Training) does
+    // not keep showing once the match loads. This covers the fresh-entry case AND
+    // rematches alike (a rematch replays the same anchor track, since no new
+    // Character-Select pick happens). Bookkeeping only — the game owns BGM playback
+    // until/unless the jukebox takes over, so no audio-hardware changes here. If
+    // the anchor differs from what the game actually loads, UpdateMusicState's
+    // detection will correct it when the native BGM registers.
+    m_customBgmLoaded = false;
+    m_modControllingBgm = false;
+    if (GetBgmFilename(m_anchorTrackId) != nullptr) {
+        m_currentTrackId = m_anchorTrackId;
+        m_gameMusicId = m_anchorTrackId;
+        m_currentTrack = nullptr;
+        for (const auto& t : m_tracks) {
+            if (t.id == m_anchorTrackId) { m_currentTrack = &t; break; }
+        }
     }
 }
 
@@ -1765,16 +1786,25 @@ void MusicManager::RestoreAnchorForSceneExit() {
     // the game's Character Select transition reads a supported track and shows
     // the original song pre-selected (as if the playlist never cycled).
     int anchorDuration = 0;
-    if (PlayTrackPhysically(modBase, m_anchorTrackId, anchorName, &anchorDuration, m_anchorTrackId)) {
+    bool restored = PlayTrackPhysically(modBase, m_anchorTrackId, anchorName, &anchorDuration, m_anchorTrackId);
+    if (restored) {
         LogMusic("MusicManager: Restored anchor track %d (%s) for scene exit\n",
             m_anchorTrackId, anchorName);
-        m_currentTrackId = m_anchorTrackId;
-        m_currentTrackDurationFrames = anchorDuration;
-        m_gameMusicId = m_anchorTrackId;
-        m_currentTrack = nullptr;
-        for (const auto& t : m_tracks) {
-            if (t.id == m_anchorTrackId) { m_currentTrack = &t; break; }
-        }
+    } else {
+        // The audible restore failed, but the bookkeeping MUST still fall back to
+        // the anchor: the control flags are cleared unconditionally below, and if
+        // m_currentTrackId kept pointing at the interrupted playlist track, every
+        // later cleanup (all guarded on those flags) would no-op and the stale
+        // "last played" track would leak into the next match's jukebox display.
+        LogMusic("MusicManager: Anchor restore FAILED; resetting bookkeeping to anchor %d anyway\n",
+            m_anchorTrackId);
+    }
+    m_currentTrackId = m_anchorTrackId;
+    m_currentTrackDurationFrames = restored ? anchorDuration : 0;
+    m_gameMusicId = m_anchorTrackId;
+    m_currentTrack = nullptr;
+    for (const auto& t : m_tracks) {
+        if (t.id == m_anchorTrackId) { m_currentTrack = &t; break; }
     }
 
     // The mod is no longer playing a custom (non-selectable) track.
