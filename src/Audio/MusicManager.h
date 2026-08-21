@@ -3,6 +3,11 @@
 #include <vector>
 #include <map>
 #include <chrono>
+#include <utility>
+#include <future>
+#include <atomic>
+#include <mutex>
+#include "CustomMusicConverter.h"
 
 struct MusicTrack {
     int id;
@@ -15,6 +20,12 @@ enum class MusicRotationMode {
                   // RotationMode=0 config values map cleanly
     Sequential,
     Shuffle
+};
+
+enum class RematchTrackMode {
+    CharacterSelect,
+    ResumeLast,
+    PlayNext
 };
 
 class MusicManager {
@@ -44,6 +55,12 @@ public:
 
     void PlayTrack(int trackId);
     void PlayNextTrack();
+    void StartCustomMusicDiscovery();
+    bool IsCustomMusicLoading() const { return m_customMusicLoading.load(); }
+    bool HasStartedCustomMusicDiscovery() const { return m_customMusicStarted.load(); }
+    float GetCustomMusicProgress() const;
+    std::string GetCustomMusicStatus() const;
+    int GetCustomTrackCount() const { return m_customTrackCount.load(); }
 
     // True when actually in a match (Training / Challenge / local VS / online),
     // i.e. MatchState_Fight — the only time the jukebox drives music.
@@ -65,12 +82,22 @@ public:
     void SetRepeatSingle(bool val) { m_repeatSingle = val; }
     bool IsRepeatSingle() const { return m_repeatSingle; }
 
+    void SetRematchTrackMode(RematchTrackMode mode) { m_rematchTrackMode = mode; }
+    RematchTrackMode GetRematchTrackMode() const { return m_rematchTrackMode; }
+
     void SavePreferences();
     void LoadPreferences();
     void ResetPreferences();
 
     static const char* GetBgmFilename(int trackId);
     static int GetTrackDuration(int trackId);
+
+    // Custom track filename lookup (dynamic, parallels the static UNKNOWN_TRACK_FILES).
+    // Populated once at startup by DiscoverCustomTracks(). Each entry:
+    // {trackId, bgmFilename} e.g. {10000, "c10000_my_song"} (no .pac extension).
+    // Custom track IDs are >= 10000 so they can never collide with a native ID
+    // and can never be written into the game's own BGM-id fields.
+    static std::vector<std::pair<int, std::string>> s_customTrackFiles;
 
     int GetSongPlaybackFrames() const { return m_songPlaybackFrames; }
     std::string GetSongTimeString() const;
@@ -125,10 +152,16 @@ private:
     ~MusicManager() = default;
 
     void BuildTrackList();
+    void DiscoverCustomTracks();
+    void RegisterCustomTracks(const std::vector<CustomTrackInfo>& customTracks);
+    void PollCustomMusicDiscovery();
     void ChangeMusicIfNeeded();
     void UpdateMusicState();
     void ShufflePlaylist();
     int SelectNextTrack();
+    int SelectNextTrackAfter(int trackId);
+    void ApplyPendingRematchTrack();
+    bool IsVersusMode() const;
     void DetectSceneExitAndUnload();
     bool PlayTrackPhysically(uintptr_t modBase, int trackId, const char* bgmName, int* outDurationFrames, int presentedId);
 
@@ -141,11 +174,21 @@ private:
     int m_songPlaybackFrames = 0;
     int m_sequentialIndex = 0;
 
-    bool m_enabled = false;
+    bool m_enabled = true;
     bool m_initialized = false;
+    bool m_customTracksDiscovered = false; // one-shot guard for DiscoverCustomTracks
+    std::atomic<bool> m_customMusicStarted{ false };
+    std::atomic<bool> m_customMusicLoading{ false };
+    std::atomic<int> m_customMusicCurrent{ 0 };
+    std::atomic<int> m_customMusicTotal{ 0 };
+    std::atomic<int> m_customTrackCount{ 0 };
+    mutable std::mutex m_customMusicStatusMutex;
+    std::string m_customMusicStatus = "Custom music loads when the Jukebox is opened";
+    std::future<std::vector<CustomTrackInfo>> m_customMusicFuture;
 
     MusicRotationMode m_rotationMode = MusicRotationMode::Sequential;
     bool m_repeatSingle = false;
+    RematchTrackMode m_rematchTrackMode = RematchTrackMode::CharacterSelect;
 
     std::vector<int> m_shuffledPlaylist;
     int m_shuffleIndex = 0;
@@ -158,6 +201,9 @@ private:
     int m_currentTrackDurationFrames = 0;
     int m_lastGameState = -1;      // last GameState (scene); for scene-exit detection
     int m_lastMatchState = -1;     // last MatchState; for match-end (-> VictoryScreen) detection
+    int m_lastPlaylistTrackId = -1; // last track successfully played by the Jukebox in the current VS/Online set
+    int m_pendingRematchTrackId = -1;
+    bool m_rematchPending = false;
     bool m_customBgmLoaded = false; // true once we've taken over BGM (needs soft-reset on exit)
     bool m_modControllingBgm = false; // true once the mod is the authority on the current track
     int m_anchorTrackId = 0;        // supported track id presented to the game (never a vs/old/sys id)

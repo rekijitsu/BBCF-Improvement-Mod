@@ -117,6 +117,22 @@ Keep in mind that the mod may partially, or completely stop working whenever a n
 Changelog
 
 ===============================
+21-08-2026 -- version 3.116
+===============================
+Features:
+- Custom Music (Custom BGM): Drop `.mp3` files into `data/Sound/BGM/custom/`. Opening the Jukebox converts them asynchronously into game-native XACT `.pac` files, displays conversion progress, and adds them to the `custom` category.
+- Added an F7 shortcut for playing the next enabled track using Sequential or Shuffle mode.
+- Added double-click track playback and an F7 shortcut hint to the Jukebox interface.
+- Music rotation is now enabled by default for new installations.
+- Added saved Character Select, Resume Last Playlist Track, and Play Next Playlist Track behavior for local VS and Online rematches.
+- Added stable custom-track IDs so adding or removing another MP3 does not reassign every custom track.
+
+Bugfixes:
+- Play Next Playlist Track now advances from the Character Select song when no Jukebox track has played yet.
+- Fixed Shuffle mode skipping the final track in its current queue.
+- Removed the Jukebox EXPERIMENTAL labels.
+
+===============================
 21-07-2026 -- version 3.112
 ===============================
 Features:

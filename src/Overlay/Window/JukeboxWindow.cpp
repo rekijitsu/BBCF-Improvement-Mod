@@ -1,5 +1,6 @@
 #include "JukeboxWindow.h"
 #include "Core/logger.h"
+#include "Core/Settings.h"
 #include "Overlay/imgui_utils.h"
 #include "Overlay/Logger/ImGuiLogger.h"
 
@@ -21,6 +22,7 @@ void JukeboxWindow::BeforeDraw() {
 
 void JukeboxWindow::Draw() {
 	MusicManager& musicManager = GetMusicManager();
+	musicManager.StartCustomMusicDiscovery();
 
 	DrawControls();
 	ImGui::Separator();
@@ -33,10 +35,20 @@ void JukeboxWindow::DrawControls() {
 	MusicManager& musicManager = GetMusicManager();
 
 	ImGui::TextColored(ImVec4(1, 1, 0, 1), "Jukebox");
-	ImGui::SameLine();
-	ImGui::TextDisabled("(EXPERIMENTAL)");
 
 	ImGui::Spacing();
+
+	if (musicManager.IsCustomMusicLoading()) {
+		std::string status = musicManager.GetCustomMusicStatus();
+		ImGui::Text("Loading custom music...");
+		ImGui::ProgressBar(musicManager.GetCustomMusicProgress(), ImVec2(-1, 0), "");
+		ImGui::TextDisabled("%s", status.c_str());
+		ImGui::Spacing();
+	} else if (musicManager.HasStartedCustomMusicDiscovery()) {
+		std::string status = musicManager.GetCustomMusicStatus();
+		ImGui::TextDisabled("%s", status.c_str());
+		ImGui::Spacing();
+	}
 
 	// Enable checkbox
 	bool enabled = musicManager.IsEnabled();
@@ -60,6 +72,21 @@ void JukeboxWindow::DrawControls() {
 		musicManager.SavePreferences();
 	}
 
+	ImGui::Text("VS/Online Rematch:");
+	ImGui::SameLine();
+	ImGui::ShowHelpMarker(
+		"Character Select Track: use the song selected at Character Select\n"
+		"Resume Last Playlist Track: restart the last song played by the Jukebox\n"
+		"Play Next Playlist Track: advance from the last Jukebox song using the selected rotation mode; if none has played yet, advance from the Character Select song\n\n"
+		"Only applies to local VS and Online rematches. The first match always uses the Character Select track.");
+
+	int rematchMode = static_cast<int>(musicManager.GetRematchTrackMode());
+	if (ImGui::Combo("##RematchTrackMode", &rematchMode,
+		"Character Select Track\0Resume Last Playlist Track\0Play Next Playlist Track\0")) {
+		musicManager.SetRematchTrackMode(static_cast<RematchTrackMode>(rematchMode));
+		musicManager.SavePreferences();
+	}
+
 	// Repeat settings
 	ImGui::HorizontalSpacing();
 	bool repeatSingle = musicManager.IsRepeatSingle();
@@ -77,6 +104,8 @@ void JukeboxWindow::DrawControls() {
 		musicManager.PlayNextTrack();
 	}
 	if (ImGui::IsItemHovered()) ImGui::SetTooltip("Play the next track (per the rotation mode)");
+	ImGui::SameLine();
+	ImGui::TextDisabled("Shortcut: %s", Settings::settingsIni.nextTrackButton.c_str());
 
 	ImGui::Spacing();
 
@@ -180,6 +209,7 @@ static const ImVec4 COLOR_SYS  = ImVec4(1.0f, 1.0f, 0.4f, 1.0f);   // Yellow - S
 static const ImVec4 COLOR_OLD  = ImVec4(0.6f, 0.6f, 0.6f, 1.0f);   // Gray - Legacy/old versions
 static const ImVec4 COLOR_STORY = ImVec4(0.4f, 1.0f, 0.6f, 1.0f);  // Light Green - Story themes
 static const ImVec4 COLOR_ASTRAL = ImVec4(1.0f, 0.6f, 0.2f, 1.0f); // Orange - Astral Finish themes
+static const ImVec4 COLOR_CUSTOM = ImVec4(0.2f, 0.8f, 1.0f, 1.0f); // Cyan/Teal - Custom user tracks
 
 static ImVec4 GetCategoryColor(const std::string& category) {
 	if (category == "btl") return COLOR_BTL;
@@ -189,6 +219,7 @@ static ImVec4 GetCategoryColor(const std::string& category) {
 	if (category == "old") return COLOR_OLD;
 	if (category == "story") return COLOR_STORY;
 	if (category == "astral") return COLOR_ASTRAL;
+	if (category == "custom") return COLOR_CUSTOM;
 	return ImVec4(1, 1, 1, 1);
 }
 
@@ -260,7 +291,8 @@ void JukeboxWindow::DrawTrackList() {
 		}
 
 		ImGui::SameLine();
-		if (ImGui::Selectable((std::to_string(track->id) + ": " + track->name + "##Sel" + std::to_string(track->id)).c_str(), isCurrent)) {
+		if (ImGui::Selectable((std::to_string(track->id) + ": " + track->name + "##Sel" + std::to_string(track->id)).c_str(),
+			isCurrent, ImGuiSelectableFlags_AllowDoubleClick) && ImGui::IsMouseDoubleClicked(0)) {
 			musicManager.PlayTrack(track->id);
 		}
 

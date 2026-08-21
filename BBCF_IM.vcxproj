@@ -16,6 +16,7 @@
     <ClCompile Include="depends\imgui\imgui_draw.cpp" />
     <ClCompile Include="depends\imgui\imgui_impl_dx9.cpp" />
     <ClCompile Include="src\Audio\MusicManager.cpp" />
+    <ClCompile Include="src\Audio\CustomMusicConverter.cpp"/>
     <ClCompile Include="src\Overlay\Window\JukeboxWindow.cpp" />
     <ClCompile Include="src\Game\ScenesManager\ScenesManager.cpp" />
     <ClCompile Include="src\Game\ReplayRewind\ReplayRewind.cpp" />
@@ -205,6 +206,7 @@
     <ClInclude Include="src\Core\utils.h" />
     <ClInclude Include="src\Web\url_downloader.h" />
     <ClInclude Include="src\Audio\MusicManager.h" />
+    <ClInclude Include="src\Audio\CustomMusicConverter.h"/>
     <ClInclude Include="src\Overlay\Window\JukeboxWindow.h" />
     <ClInclude Include="src\Game\Menus\TrainingSetupMenu.h" />
   </ItemGroup>
@@ -289,7 +291,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>DebugFull</GenerateDebugInformation>
-      <AdditionalDependencies>comsuppw.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>comsuppw.lib;mfplat.lib;mfreadwrite.lib;mf.lib;mfuuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>export/dinput8.def</ModuleDefinitionFile>
     </Link>
   </ItemDefinitionGroup>
@@ -322,7 +324,7 @@
       <ModuleDefinitionFile>export/dinput8.def</ModuleDefinitionFile>
       <AdditionalLibraryDirectories>
       </AdditionalLibraryDirectories>
-      <AdditionalDependencies>comsuppw.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>comsuppw.lib;mfplat.lib;mfreadwrite.lib;mf.lib;mfuuid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

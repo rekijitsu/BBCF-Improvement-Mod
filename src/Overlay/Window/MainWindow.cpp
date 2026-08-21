@@ -494,7 +494,19 @@ void MainWindow::DrawMusicSection() const
 		musicManager.PlayNextTrack();
 	}
 	ImGui::SameLine();
+	ImGui::TextDisabled("Shortcut: %s", Settings::settingsIni.nextTrackButton.c_str());
+
+	ImGui::HorizontalSpacing();
+	ImGui::Text("VS/Online Rematch:");
+	int rematchMode = static_cast<int>(musicManager.GetRematchTrackMode());
+	if (ImGui::Combo("##MusicRematchTrackMode", &rematchMode,
+		"Character Select Track\0Resume Last Playlist Track\0Play Next Playlist Track\0")) {
+		musicManager.SetRematchTrackMode(static_cast<RematchTrackMode>(rematchMode));
+		musicManager.SavePreferences();
+	}
+	ImGui::SameLine();
 	if (ImGui::Button("Open Jukebox")) {
+		musicManager.StartCustomMusicDiscovery();
 		m_pWindowContainer->GetWindow(WindowType_Jukebox)->ToggleOpen();
 	}
 }
