@@ -444,15 +444,13 @@ void MusicManager::BuildTrackList() {
 // "astral". Called once from Initialize(), after LoadPreferences() so the user's
 // saved enabled/disabled state for previously-seen custom track IDs applies.
 void MusicManager::DiscoverCustomTracks() {
-    if (m_customTracksDiscovered) return;
-    m_customTracksDiscovered = true;
+    StartCustomMusicDiscovery();
+}
 
-    LogMusic("MusicManager: Discovering custom tracks...\n");
-
-    std::vector<CustomTrackInfo> customTracks = ConvertCustomMusicOnStartup();
-
+void MusicManager::RegisterCustomTracks(const std::vector<CustomTrackInfo>& customTracks) {
     if (customTracks.empty()) {
         LogMusic("MusicManager: No custom tracks found\n");
+        m_customTrackCount = 0;
         return;
     }
 
@@ -475,7 +473,55 @@ void MusicManager::DiscoverCustomTracks() {
             ct.id, ct.displayName.c_str(), ct.pacFilename.c_str());
     }
 
+    m_customTrackCount = (int)customTracks.size();
     LogMusic("MusicManager: Total tracks after custom: %d\n", (int)m_tracks.size());
+}
+
+void MusicManager::StartCustomMusicDiscovery() {
+    if (m_customMusicStarted.exchange(true)) return;
+    m_customTracksDiscovered = true;
+    m_customMusicLoading = true;
+    m_customMusicCurrent = 0;
+    m_customMusicTotal = 0;
+    {
+        std::lock_guard<std::mutex> lock(m_customMusicStatusMutex);
+        m_customMusicStatus = "Scanning custom music";
+    }
+    LogMusic("MusicManager: Starting custom music discovery\n");
+    m_customMusicFuture = std::async(std::launch::async, [this]() {
+        return ConvertCustomMusicOnStartup([this](int current, int total, const std::string& status) {
+            m_customMusicCurrent = current;
+            m_customMusicTotal = total;
+            std::lock_guard<std::mutex> lock(m_customMusicStatusMutex);
+            m_customMusicStatus = status;
+        });
+    });
+}
+
+void MusicManager::PollCustomMusicDiscovery() {
+    if (!m_customMusicLoading || !m_customMusicFuture.valid()) return;
+    if (m_customMusicFuture.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready) return;
+    std::vector<CustomTrackInfo> customTracks = m_customMusicFuture.get();
+    RegisterCustomTracks(customTracks);
+    m_customMusicLoading = false;
+    {
+        std::lock_guard<std::mutex> lock(m_customMusicStatusMutex);
+        m_customMusicStatus = customTracks.empty()
+            ? "No custom MP3 files found"
+            : "Custom music ready: " + std::to_string(customTracks.size()) + " track(s)";
+    }
+}
+
+float MusicManager::GetCustomMusicProgress() const {
+    int total = m_customMusicTotal.load();
+    if (total <= 0) return m_customMusicLoading ? 0.0f : 1.0f;
+    float progress = (float)m_customMusicCurrent.load() / (float)total;
+    return progress < 0.0f ? 0.0f : (progress > 1.0f ? 1.0f : progress);
+}
+
+std::string MusicManager::GetCustomMusicStatus() const {
+    std::lock_guard<std::mutex> lock(m_customMusicStatusMutex);
+    return m_customMusicStatus;
 }
 
 void MusicManager::Initialize() {
@@ -507,31 +553,27 @@ void MusicManager::Initialize() {
 
     LoadPreferences();
 
-    // Discover and register custom tracks (after preferences are loaded so saved
-    // enabled/disabled states for previously-seen custom track IDs apply). This
-    // may transcode MP3s on first run, which can take a little while.
-    DiscoverCustomTracks();
-
     m_initialized = true;
     LogMusic("MusicManager initialized with %d tracks, enabled=%d\n", (int)m_tracks.size(), m_enabled);
 }
 
 void MusicManager::OnMatchInit() {
-    LogMusic("MusicManager: OnMatchInit - resetting BGM state (current=%d anchor=%d controlling=%d loaded=%d)\n",
-        m_currentTrackId, m_anchorTrackId, m_modControllingBgm ? 1 : 0, m_customBgmLoaded ? 1 : 0);
+    const bool applyRematchPreference = m_rematchPending && IsVersusMode();
+    const int lastPlaylistTrack = m_lastPlaylistTrackId;
+    m_rematchPending = false;
+    m_pendingRematchTrackId = -1;
+
+    LogMusic("MusicManager: OnMatchInit - resetting BGM state (current=%d anchor=%d controlling=%d loaded=%d mode=%d rematch=%d lastPlaylist=%d)\n",
+        m_currentTrackId, m_anchorTrackId, m_modControllingBgm ? 1 : 0, m_customBgmLoaded ? 1 : 0,
+        g_gameVals.pGameMode ? *g_gameVals.pGameMode : -1, applyRematchPreference ? 1 : 0, lastPlaylistTrack);
     if (m_customBgmLoaded || m_modControllingBgm) {
         ClearBgmForSceneExit();
     }
 
-    // A new match always starts with the game natively playing the track chosen at
-    // Character Select (the anchor). Re-sync the jukebox's bookkeeping to it so a
-    // stale "last played" playlist track from a previous mode (e.g. Training) does
-    // not keep showing once the match loads. This covers the fresh-entry case AND
-    // rematches alike (a rematch replays the same anchor track, since no new
-    // Character-Select pick happens). Bookkeeping only — the game owns BGM playback
-    // until/unless the jukebox takes over, so no audio-hardware changes here. If
-    // the anchor differs from what the game actually loads, UpdateMusicState's
-    // detection will correct it when the native BGM registers.
+    // Every match initially loads the Character Select track (the anchor).
+    // Re-sync bookkeeping to that native track first; a VS/Online rematch
+    // override, if requested, is queued below and applied only after the fight's
+    // audio bank finishes initializing.
     m_customBgmLoaded = false;
     m_modControllingBgm = false;
     if (GetBgmFilename(m_anchorTrackId) != nullptr) {
@@ -542,10 +584,28 @@ void MusicManager::OnMatchInit() {
             if (t.id == m_anchorTrackId) { m_currentTrack = &t; break; }
         }
     }
+
+    if (applyRematchPreference) {
+        if (m_rematchTrackMode == RematchTrackMode::ResumeLast) {
+            if (lastPlaylistTrack >= 0 && GetBgmFilename(lastPlaylistTrack) && IsTrackEnabled(lastPlaylistTrack)) {
+                m_pendingRematchTrackId = lastPlaylistTrack;
+            }
+        } else if (m_rematchTrackMode == RematchTrackMode::PlayNext) {
+            const int startingTrack = lastPlaylistTrack >= 0 ? lastPlaylistTrack : m_anchorTrackId;
+            if (GetBgmFilename(startingTrack)) {
+                m_pendingRematchTrackId = SelectNextTrackAfter(startingTrack);
+            }
+        }
+    }
+
+    LogMusic("MusicManager: Rematch choice mode=%d queuedTrack=%d (anchor=%d)\n",
+        (int)m_rematchTrackMode, m_pendingRematchTrackId, m_anchorTrackId);
 }
 
 void MusicManager::Update() {
     if (!m_initialized) return;
+
+    PollCustomMusicDiscovery();
 
     if (m_pendingPlay) {
         m_pendingPlayRetries++;
@@ -621,7 +681,7 @@ void MusicManager::Update() {
     DetectSceneExitAndUnload();
 
     if (!m_enabled) return;
-    if (!s_musicSelectX) return;
+    if (!IsInMatch()) return;
 
     // --- "Return to Character Select?" confirm-dialog handling ---
     // While this dialog is up, restore the initially-selected (selectable) anchor
@@ -670,6 +730,8 @@ void MusicManager::Update() {
     }
 
     UpdateMusicState();
+
+    ApplyPendingRematchTrack();
 
     // Only auto-rotate when actively fighting and the confirm dialog isn't open.
     if (!m_confirmDialogActive && g_gameVals.pMatchState && *g_gameVals.pMatchState == MatchState_Fight) {
@@ -869,9 +931,14 @@ void MusicManager::UpdateMusicState() {
 		if (ms != m_lastMatchState) {
 			LogMusic("MusicManager: MatchState %d -> %d (currentTrack=%d, modControlling=%d, customLoaded=%d)\n",
 				m_lastMatchState, ms, m_currentTrackId, m_modControllingBgm ? 1 : 0, m_customBgmLoaded ? 1 : 0);
-			if (ms == MatchState_VictoryScreen && (m_customBgmLoaded || m_modControllingBgm)) {
-				LogMusic("MusicManager: Match end (-> VictoryScreen) with custom BGM active: clearing footprint before teardown\n");
-				ClearBgmForSceneExit();
+			if (ms == MatchState_VictoryScreen) {
+				m_rematchPending = IsVersusMode();
+				LogMusic("MusicManager: Victory screen; VS/Online rematch pending=%d lastPlaylist=%d\n",
+					m_rematchPending ? 1 : 0, m_lastPlaylistTrackId);
+				if (m_customBgmLoaded || m_modControllingBgm) {
+					LogMusic("MusicManager: Match end (-> VictoryScreen) with custom BGM active: clearing footprint before teardown\n");
+					ClearBgmForSceneExit();
+				}
 			}
 			m_lastMatchState = ms;
 		}
@@ -994,13 +1061,17 @@ void MusicManager::ChangeMusicIfNeeded() {
 }
 
 int MusicManager::SelectNextTrack() {
+    return SelectNextTrackAfter(m_currentTrackId);
+}
+
+int MusicManager::SelectNextTrackAfter(int trackId) {
     std::vector<MusicTrack> enabledTracks = GetEnabledTracks();
     if (enabledTracks.empty()) return -1;
 
     // Find current index in enabled tracks
     int currentIndex = -1;
     for (size_t i = 0; i < enabledTracks.size(); i++) {
-        if (enabledTracks[i].id == m_currentTrackId) {
+        if (enabledTracks[i].id == trackId) {
             currentIndex = (int)i;
             break;
         }
@@ -1021,14 +1092,23 @@ int MusicManager::SelectNextTrack() {
         // Shuffle (the old "Random" mode is folded in here): play enabled tracks
         // in a shuffled order without repeating until all have played, then
         // reshuffle and carry on.
-        if (m_shuffledPlaylist.empty() ||
-            (int)m_shuffledPlaylist.size() != (int)enabledTracks.size() ||
+        bool shuffledPlaylistMatches =
+            (int)m_shuffledPlaylist.size() == (int)enabledTracks.size();
+        if (shuffledPlaylistMatches) {
+            for (const auto& enabledTrack : enabledTracks) {
+                if (std::find(m_shuffledPlaylist.begin(), m_shuffledPlaylist.end(), enabledTrack.id) == m_shuffledPlaylist.end()) {
+                    shuffledPlaylistMatches = false;
+                    break;
+                }
+            }
+        }
+        if (m_shuffledPlaylist.empty() || !shuffledPlaylistMatches ||
             m_shuffleIndex >= (int)m_shuffledPlaylist.size()) {
             ShufflePlaylist();
             // Start just after the current track in the shuffled order so we don't
             // immediately replay it.
             for (size_t i = 0; i < m_shuffledPlaylist.size(); i++) {
-                if (m_shuffledPlaylist[i] == m_currentTrackId) {
+                if (m_shuffledPlaylist[i] == trackId) {
                     m_shuffleIndex = (int)i + 1;
                     if (m_shuffleIndex >= (int)m_shuffledPlaylist.size()) {
                         m_shuffleIndex = 0;
@@ -1040,16 +1120,46 @@ int MusicManager::SelectNextTrack() {
 
         int nextTrackId = m_shuffledPlaylist[m_shuffleIndex];
         m_shuffleIndex++;
-
-        if (m_shuffleIndex >= (int)m_shuffledPlaylist.size()) {
-            ShufflePlaylist();
-            m_shuffleIndex = 0;
-            nextTrackId = m_shuffledPlaylist[0];
-        }
         return nextTrackId;
     }
 
     return -1;
+}
+
+bool MusicManager::IsVersusMode() const {
+    if (!g_gameVals.pGameMode) return false;
+    int mode = -1;
+    __try {
+        mode = *g_gameVals.pGameMode;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER) {
+        return false;
+    }
+    return mode == GameMode_Versus || mode == GameMode_Online;
+}
+
+void MusicManager::ApplyPendingRematchTrack() {
+    if (m_pendingRematchTrackId < 0 || !g_gameVals.pMatchState) {
+        return;
+    }
+
+    const int matchState = *g_gameVals.pMatchState;
+    if (matchState != MatchState_NotStarted &&
+        matchState != MatchState_RebelActionRoundSign &&
+        matchState != MatchState_Fight) {
+        return;
+    }
+
+    int trackId = m_pendingRematchTrackId;
+    m_pendingRematchTrackId = -1;
+    if (!IsVersusMode() || !GetBgmFilename(trackId) || !IsTrackEnabled(trackId)) {
+        LogMusic("MusicManager: Dropping invalid/out-of-mode rematch track %d\n", trackId);
+        return;
+    }
+
+    LogMusic("MusicManager: Applying VS/Online rematch track %d (preference=%d)\n",
+        trackId, (int)m_rematchTrackMode);
+    PlayTrack(trackId);
 }
 
 static int CallPlaySoundObject(uintptr_t playSoundObjAddr, void* playController, void* soundObj, const char* path, int* voiceHandleOut) {
@@ -1676,6 +1786,9 @@ void MusicManager::PlayTrack(int trackId) {
 	m_songPlaybackFrames = 0;
 	m_modControllingBgm = true; // the mod is now the authority on the current track
 	m_customBgmLoaded = true;   // we've taken over BGM; needs soft-reset on scene exit
+	if (IsVersusMode()) {
+		m_lastPlaylistTrackId = trackId;
+	}
 
 	m_currentTrack = nullptr;
 	for (const auto& t : m_tracks) {
@@ -1705,7 +1818,7 @@ void MusicManager::ShufflePlaylist() {
         m_shuffledPlaylist.push_back(track.id);
     }
 
-    static std::mt19937 rng(std::time(nullptr));
+    static std::mt19937 rng(static_cast<unsigned int>(std::time(nullptr)));
     std::shuffle(m_shuffledPlaylist.begin(), m_shuffledPlaylist.end(), rng);
     m_shuffleIndex = 0;
 }
@@ -1772,6 +1885,13 @@ void MusicManager::DetectSceneExitAndUnload() {
     }
     if (gameState < 0) {
         return; // state unreadable this frame; keep last known, retry next frame
+    }
+
+    if (gameState == GameState_CharacterSelectionScreen ||
+        gameState == GameState_MainMenu || gameState == GameState_Lobby) {
+        m_rematchPending = false;
+        m_pendingRematchTrackId = -1;
+        m_lastPlaylistTrackId = -1;
     }
 
     if (m_lastGameState == GameState_InMatch && gameState != GameState_InMatch && m_customBgmLoaded) {
@@ -2006,6 +2126,7 @@ void MusicManager::SavePreferences() {
     else if (m_rotationMode == MusicRotationMode::Shuffle) modeInt = 2;
     file << "RotationMode=" << modeInt << "\n";
 	file << "RepeatSingle=" << (m_repeatSingle ? "1" : "0") << "\n";
+	file << "RematchTrackMode=" << (int)m_rematchTrackMode << "\n";
 
 	file.close();
     LOG(2, "MusicManager: Saved preferences\n");
@@ -2047,6 +2168,12 @@ void MusicManager::LoadPreferences() {
                 else m_rotationMode = MusicRotationMode::Shuffle; // 2 (and legacy 0 "Random")
             } else if (key == "RepeatSingle") {
 				m_repeatSingle = (value == "1");
+			} else if (key == "RematchTrackMode") {
+				int rematchMode = std::stoi(value);
+				if (rematchMode >= (int)RematchTrackMode::CharacterSelect &&
+					rematchMode <= (int)RematchTrackMode::PlayNext) {
+					m_rematchTrackMode = (RematchTrackMode)rematchMode;
+				}
 			}
 		}
     }
@@ -2063,6 +2190,7 @@ void MusicManager::ResetPreferences() {
     m_enabled = true;
 	m_rotationMode = MusicRotationMode::Sequential;
 	m_repeatSingle = false;
+	m_rematchTrackMode = RematchTrackMode::CharacterSelect;
 	SavePreferences();
     LOG(2, "MusicManager: Preferences reset - all tracks enabled\n");
 }

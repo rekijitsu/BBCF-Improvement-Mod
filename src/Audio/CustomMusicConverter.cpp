@@ -1,6 +1,5 @@
 #include "CustomMusicConverter.h"
 #include "Core/logger.h"
-#include "Overlay/Logger/ImGuiLogger.h"
 
 #include <windows.h>
 #include <mfapi.h>
@@ -9,10 +8,10 @@
 #include <mferror.h>
 #include <algorithm>
 #include <fstream>
-#include <sstream>
 #include <cstdio>
 #include <cstring>
 #include <cstdarg>
+#include <cctype>
 #include <vector>
 #include <string>
 
@@ -31,11 +30,6 @@ static void LogCustom(const char* fmt, ...) {
     vsnprintf_s(buf, sizeof(buf), _TRUNCATE, fmt, args);
     va_end(args);
     LOG(1, "%s", buf);
-    if (g_imGuiLogger) {
-        std::ostringstream oss;
-        oss << "[custom-music] " << buf;
-        g_imGuiLogger->Log("%s", oss.str().c_str());
-    }
 }
 
 // ============================================================================
@@ -649,7 +643,16 @@ static std::vector<unsigned char> BuildFpacContainer(const std::string& cueName,
 // ============================================================================
 // Public API: ConvertCustomMusicOnStartup
 // ============================================================================
-std::vector<CustomTrackInfo> ConvertCustomMusicOnStartup() {
+static unsigned int StableTrackHash(const std::string& filename) {
+    unsigned int hash = 2166136261u; // FNV-1a
+    for (unsigned char c : filename) {
+        hash ^= static_cast<unsigned char>(tolower(c));
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+std::vector<CustomTrackInfo> ConvertCustomMusicOnStartup(const CustomMusicProgressCallback& progress) {
     std::vector<CustomTrackInfo> result;
 
     // Media Foundation's MFT activation needs COM on this thread. The game's
@@ -693,9 +696,17 @@ std::vector<CustomTrackInfo> ConvertCustomMusicOnStartup() {
     // Sort for deterministic ID/cue-name assignment across runs
     std::sort(mp3Files.begin(), mp3Files.end());
     LogCustom("Found %d custom MP3 file(s) in %s\n", (int)mp3Files.size(), CUSTOM_DIR);
+    if (progress) progress(0, (int)mp3Files.size(), "Scanning custom music");
 
-    int nextId = 10000;
-    for (const auto& mp3Filename : mp3Files) {
+    std::vector<int> assignedIds;
+    for (size_t fileIndex = 0; fileIndex < mp3Files.size(); ++fileIndex) {
+        const std::string& mp3Filename = mp3Files[fileIndex];
+        if (progress) progress((int)fileIndex, (int)mp3Files.size(), mp3Filename);
+        int trackId = 10000 + (int)(StableTrackHash(mp3Filename) % 90000u);
+        while (std::find(assignedIds.begin(), assignedIds.end(), trackId) != assignedIds.end()) {
+            trackId = (trackId == 99999) ? 10000 : trackId + 1;
+        }
+        assignedIds.push_back(trackId);
         std::string displayName = GetDisplayName(mp3Filename);
         std::string sanitized = SanitizeCueName(displayName);
 
@@ -703,7 +714,7 @@ std::vector<CustomTrackInfo> ConvertCustomMusicOnStartup() {
         // guarantees uniqueness (ids are assigned in sorted-file order).
         if (sanitized.size() > 16) sanitized.resize(16); // bound the sprintf below
         char cueBuf[32];
-        sprintf_s(cueBuf, "c%05d_%s", nextId, sanitized.c_str());
+        sprintf_s(cueBuf, "c%05d_%s", trackId, sanitized.c_str());
         std::string cueName = cueBuf;
         if (cueName.size() > MAX_CUE_NAME_LEN) cueName.resize(MAX_CUE_NAME_LEN);
 
@@ -719,7 +730,7 @@ std::vector<CustomTrackInfo> ConvertCustomMusicOnStartup() {
             CompareFileTime(&mp3Info.ftLastWriteTime, &pacInfo.ftLastWriteTime) <= 0) {
             LogCustom("Using cached PAC for '%s' -> %s.pac\n", mp3Filename.c_str(), cueName.c_str());
             CustomTrackInfo info;
-            info.id = nextId++;
+            info.id = trackId;
             info.displayName = displayName;
             info.pacFilename = pacFilename;
             info.pacPath = pacPath;
@@ -778,7 +789,7 @@ std::vector<CustomTrackInfo> ConvertCustomMusicOnStartup() {
             mp3Filename.c_str(), cueName.c_str(), pac.size(), durSec / 60, durSec % 60);
 
         CustomTrackInfo info;
-        info.id = nextId++;
+        info.id = trackId;
         info.displayName = displayName;
         info.pacFilename = pacFilename;
         info.pacPath = pacPath;
@@ -789,5 +800,6 @@ std::vector<CustomTrackInfo> ConvertCustomMusicOnStartup() {
     if (coInitialized) CoUninitialize();
 
     LogCustom("Custom music processing complete: %d track(s) ready\n", (int)result.size());
+    if (progress) progress((int)mp3Files.size(), (int)mp3Files.size(), "Custom music ready");
     return result;
 }

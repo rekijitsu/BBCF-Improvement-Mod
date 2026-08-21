@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <functional>
 
 // Information about a discovered custom track (after conversion).
 struct CustomTrackInfo {
@@ -31,4 +32,6 @@ struct CustomTrackInfo {
 // Returns the list of custom tracks (both freshly converted and cached). On any
 // failure the affected track is skipped (logged) and the rest still convert, so
 // a bad MP3 can never block the mod from loading.
-std::vector<CustomTrackInfo> ConvertCustomMusicOnStartup();
+using CustomMusicProgressCallback = std::function<void(int, int, const std::string&)>;
+std::vector<CustomTrackInfo> ConvertCustomMusicOnStartup(
+    const CustomMusicProgressCallback& progress = CustomMusicProgressCallback());

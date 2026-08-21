@@ -23,6 +23,7 @@ int keyToggleMainWindow;
 int keyToggleRoomWindow;
 int keyToggleHud;
 int keyToggleJukeboxWindow;
+int keyPlayNextJukeboxTrack;
 
 WindowManager* WindowManager::m_instance = nullptr;
 
@@ -128,6 +129,9 @@ bool WindowManager::Initialize(void *hwnd, IDirect3DDevice9 *device)
 
 	keyToggleJukeboxWindow = Settings::getButtonValue(Settings::settingsIni.toggleJukeboxButton);
 	m_pLogger->Log("[system] Jukebox toggling key set to '%s'\n", Settings::settingsIni.toggleJukeboxButton.c_str());
+
+	keyPlayNextJukeboxTrack = Settings::getButtonValue(Settings::settingsIni.nextTrackButton);
+	m_pLogger->Log("[system] Jukebox next-track key set to '%s'\n", Settings::settingsIni.nextTrackButton.c_str());
 
 	// Load custom palettes
 
@@ -288,7 +292,18 @@ void WindowManager::HandleButtons()
 
 	if (ImGui::IsKeyPressed(keyToggleJukeboxWindow))
 	{
-		m_windowContainer->GetWindow(WindowType_Jukebox)->ToggleOpen();
+		IWindow* jukebox = m_windowContainer->GetWindow(WindowType_Jukebox);
+		const bool opening = !jukebox->IsOpen();
+		jukebox->ToggleOpen();
+		if (opening)
+		{
+			GetMusicManager().StartCustomMusicDiscovery();
+		}
+	}
+
+	if (ImGui::IsKeyPressed(keyPlayNextJukeboxTrack))
+	{
+		GetMusicManager().PlayNextTrack();
 	}
 }
 
